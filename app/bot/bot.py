@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Student Services Platform - Telegram Bot (Improved Version)
+Student Services Platform - Telegram Bot (Fixed Version)
 Production-ready bot with comprehensive order management and payment processing
 
 Improvements implemented:
@@ -10,7 +10,7 @@ Improvements implemented:
 4. Enhanced error handling with user-friendly messages
 5. Secure file handling with sanitization
 6. Separated payment processing logic
-7. Markdown escaping for user input
+7. Markdown escaping for user input (FIXED f-string issues)
 8. Structured logging with user traceability
 9. Fallback handlers for unexpected callbacks
 10. Helper functions to reduce code duplication
@@ -260,19 +260,16 @@ class StudentServicesBot:
             # Get or create user
             user = await self._get_or_create_user(message.from_user)
             
-            # Escape user name for Markdown
-            safe_name = escape_md(user.full_name)
-            
             welcome_text = f"""
-🎓 **Welcome to Student Services Platform\\!**
+🎓 **Welcome to Student Services Platform!**
 
-Hello {safe_name}\\! 👋
+Hello {user.full_name}! 👋
 
-We provide high\\-quality academic writing services:
+We provide high-quality academic writing services:
 📝 Assignments & Essays
 📊 Projects & Research
 🎯 Presentations
-✨ And much more\\!
+✨ And much more!
 
 **What would you like to do?**
             """
@@ -280,7 +277,7 @@ We provide high\\-quality academic writing services:
             await message.answer(
                 welcome_text,
                 reply_markup=get_main_menu(),
-                parse_mode="MarkdownV2"
+                parse_mode="Markdown"
             )
             
             self._log_with_user_context('info', f"User started the bot", user_id)
@@ -293,14 +290,15 @@ We provide high\\-quality academic writing services:
         """Handle /help command"""
         user_id = str(message.from_user.id)
         try:
+            support_email = settings.support_email or 'support@example.com'
             help_text = f"""
 🆘 **Help & Support**
 
 **Available Commands:**
-/start \\- Start the bot and show main menu
-/orders \\- View your orders
-/cancel \\- Cancel current operation
-/help \\- Show this help message
+/start - Start the bot and show main menu
+/orders - View your orders
+/cancel - Cancel current operation
+/help - Show this help message
 
 **How to place an order:**
 1️⃣ Click "📝 New Order"
@@ -310,17 +308,17 @@ We provide high\\-quality academic writing services:
 5️⃣ Complete payment
 
 **Payment Methods:**
-💳 Credit/Debit Card \\(Instant\\)
-🏦 Bank Transfer \\(24h verification\\)
+💳 Credit/Debit Card (Instant)
+🏦 Bank Transfer (24h verification)
 
 **Support:**
-📧 Email: {escape_md(settings.support_email or 'support@example.com')}
+📧 Email: {support_email}
 
 **Business Hours:**
 🕐 24/7 Support Available
             """
             
-            await message.answer(help_text, parse_mode="MarkdownV2")
+            await message.answer(help_text, parse_mode="Markdown")
             self._log_with_user_context('info', "Help command used", user_id)
             
         except Exception as e:
@@ -339,9 +337,9 @@ We provide high\\-quality academic writing services:
                 
                 if not orders:
                     await message.answer(
-                        "📋 **Your Orders**\n\nYou haven't placed any orders yet\\.\n\nClick 'New Order' to get started\\!",
+                        "📋 **Your Orders**\n\nYou haven't placed any orders yet.\n\nClick 'New Order' to get started!",
                         reply_markup=get_main_menu(),
-                        parse_mode="MarkdownV2"
+                        parse_mode="Markdown"
                     )
                     return
                 
@@ -364,16 +362,12 @@ We provide high\\-quality academic writing services:
                         'refunded': '↩️'
                     }.get(order.payment_status, '❓')
                     
-                    # Escape user data for Markdown
-                    safe_subject = escape_md(order.subject[:30])
-                    safe_service = escape_md(order.service_type.title())
-                    
                     orders_text += f"""
-{status_emoji} **Order \\#{escape_md(order.order_number)}**
-📝 {safe_service} \\- {safe_subject}
-💰 {order.total_amount} {escape_md(order.currency)}
-💳 Payment: {payment_emoji} {escape_md(order.payment_status.title())}
-📅 Created: {escape_md(order.created_at.strftime('%Y-%m-%d %H:%M'))}
+{status_emoji} **Order #{order.order_number}**
+📝 {order.service_type.title()} - {order.subject}
+💰 {order.total_amount} {order.currency}
+💳 Payment: {payment_emoji} {order.payment_status.title()}
+📅 Created: {order.created_at.strftime('%Y-%m-%d %H:%M')}
 
 """
                 
@@ -386,14 +380,14 @@ We provide high\\-quality academic writing services:
                 await message.answer(
                     orders_text,
                     reply_markup=keyboard.as_markup(),
-                    parse_mode="MarkdownV2"
+                    parse_mode="Markdown"
                 )
                 
                 self._log_with_user_context('info', f"Orders viewed, count: {len(orders)}", user_id)
                 
         except Exception as e:
             self._log_with_user_context('error', f"Error in orders command: {e}", user_id)
-            await self._handle_user_error(message, "❌ Error fetching your orders\\. Please try again\\.")
+            await self._handle_user_error(message, "❌ Error fetching your orders. Please try again.")
     
     async def cmd_cancel(self, message: Message, state: FSMContext):
         """Handle /cancel command"""
@@ -401,9 +395,9 @@ We provide high\\-quality academic writing services:
         try:
             await state.clear()
             await message.answer(
-                "❌ **Operation Cancelled**\n\nReturning to main menu\\.\\.\\.",
+                "❌ **Operation Cancelled**\n\nReturning to main menu...",
                 reply_markup=get_main_menu(),
-                parse_mode="MarkdownV2"
+                parse_mode="Markdown"
             )
             self._log_with_user_context('info', "Operation cancelled", user_id)
         except Exception as e:
@@ -418,12 +412,11 @@ We provide high\\-quality academic writing services:
             await state.clear()
             
             user = await self._get_or_create_user(callback.from_user)
-            safe_name = escape_md(user.full_name)
             
             welcome_text = f"""
 🎓 **Student Services Platform**
 
-Hello {safe_name}\\! 👋
+Hello {user.full_name}! 👋
 
 **What would you like to do?**
             """
@@ -431,7 +424,7 @@ Hello {safe_name}\\! 👋
             await callback.message.edit_text(
                 welcome_text,
                 reply_markup=get_main_menu(),
-                parse_mode="MarkdownV2"
+                parse_mode="Markdown"
             )
             
         except Exception as e:
@@ -449,18 +442,18 @@ Hello {safe_name}\\! 👋
 
 Please select the type of service you need:
 
-📚 **Assignment** \\- Essays, reports, homework
-📊 **Project** \\- Research projects, case studies
-🎯 **Presentation** \\- PowerPoint, slides
-🎨 **Redesign** \\- Improve existing work
-📄 **Summary** \\- Summarize documents
-⚡ **Express** \\- Urgent work \\(24h or less\\)
+📚 **Assignment** - Essays, reports, homework
+📊 **Project** - Research projects, case studies
+🎯 **Presentation** - PowerPoint, slides
+🎨 **Redesign** - Improve existing work
+📄 **Summary** - Summarize documents
+⚡ **Express** - Urgent work (24h or less)
             """
             
             await callback.message.edit_text(
                 text,
                 reply_markup=get_service_menu(),
-                parse_mode="MarkdownV2"
+                parse_mode="Markdown"
             )
             
             self._log_with_user_context('info', "New order flow started", user_id)
@@ -487,7 +480,7 @@ Please select the type of service you need:
                 'express': 'Express Service'
             }
             
-            service_name = escape_md(service_names.get(service_type, service_type.title()))
+            service_name = service_names.get(service_type, service_type.title())
             
             text = f"""
 📝 **{service_name} Order**
@@ -497,7 +490,7 @@ Please enter the **subject/title** of your work:
 Example: "Marketing Strategy Analysis" or "Python Programming Assignment"
             """
             
-            await callback.message.edit_text(text, parse_mode="MarkdownV2")
+            await callback.message.edit_text(text, parse_mode="Markdown")
             await state.set_state(OrderStates.waiting_for_subject)
             
             self._log_with_user_context('info', f"Service selected: {service_type}", user_id)
@@ -513,7 +506,7 @@ Example: "Marketing Strategy Analysis" or "Python Programming Assignment"
             subject = message.text.strip()
             
             if len(subject) < 5:
-                await message.answer("❌ Subject is too short\\. Please provide a more detailed subject \\(at least 5 characters\\)\\.", parse_mode="MarkdownV2")
+                await message.answer("❌ Subject is too short. Please provide a more detailed subject (at least 5 characters).", parse_mode="Markdown")
                 return
             
             await state.update_data(subject=subject)
@@ -526,13 +519,13 @@ Please provide detailed requirements for your work:
 Include:
 • Number of pages/words
 • Specific instructions
-• Format requirements \\(APA, MLA, etc\\.\\)
+• Format requirements (APA, MLA, etc.)
 • Any special requirements
 
-The more details you provide, the better we can serve you\\!
+The more details you provide, the better we can serve you!
             """
             
-            await message.answer(text, parse_mode="MarkdownV2")
+            await message.answer(text, parse_mode="Markdown")
             await state.set_state(OrderStates.waiting_for_requirements)
             
             self._log_with_user_context('info', f"Subject entered: {subject[:50]}...", user_id)
@@ -548,7 +541,7 @@ The more details you provide, the better we can serve you\\!
             requirements = message.text.strip()
             
             if len(requirements) < 20:
-                await message.answer("❌ Requirements are too brief\\. Please provide more detailed requirements \\(at least 20 characters\\)\\.", parse_mode="MarkdownV2")
+                await message.answer("❌ Requirements are too brief. Please provide more detailed requirements (at least 20 characters).", parse_mode="Markdown")
                 return
             
             await state.update_data(requirements=requirements)
@@ -562,7 +555,7 @@ Please select your academic level:
             await message.answer(
                 text,
                 reply_markup=get_academic_level_menu(),
-                parse_mode="MarkdownV2"
+                parse_mode="Markdown"
             )
             
             self._log_with_user_context('info', f"Requirements entered: {len(requirements)} chars", user_id)
@@ -585,18 +578,18 @@ Please select your academic level:
 
 Please enter your deadline in one of these formats:
 
-📅 **Date & Time:** "2024\\-12\\-25 14:30"
-📅 **Date Only:** "2024\\-12\\-25" \\(assumes end of day\\)
+📅 **Date & Time:** "2024-12-25 14:30"
+📅 **Date Only:** "2024-12-25" (assumes end of day)
 ⏱️ **Hours:** "24 hours" or "3 days"
 
 Examples:
-• "2024\\-12\\-25 14:30"
-• "2024\\-12\\-25"
+• "2024-12-25 14:30"
+• "2024-12-25"
 • "48 hours"
 • "3 days"
             """
             
-            await callback.message.edit_text(text, parse_mode="MarkdownV2")
+            await callback.message.edit_text(text, parse_mode="Markdown")
             await state.set_state(OrderStates.waiting_for_deadline)
             
             self._log_with_user_context('info', f"Academic level selected: {academic_level}", user_id)
@@ -629,18 +622,18 @@ Examples:
                 
                 # Validate deadline is in the future
                 if deadline <= datetime.now():
-                    await message.answer("❌ Deadline must be in the future\\. Please enter a valid deadline\\.", parse_mode="MarkdownV2")
+                    await message.answer("❌ Deadline must be in the future. Please enter a valid deadline.", parse_mode="Markdown")
                     return
                 
             except (ValueError, IndexError):
                 await message.answer("""
-❌ Invalid deadline format\\. Please use one of these formats:
+❌ Invalid deadline format. Please use one of these formats:
 
-📅 **Date & Time:** "2024\\-12\\-25 14:30"
-📅 **Date Only:** "2024\\-12\\-25"
+📅 **Date & Time:** "2024-12-25 14:30"
+📅 **Date Only:** "2024-12-25"
 ⏱️ **Hours:** "24 hours" or "48 hours"
 ⏱️ **Days:** "3 days" or "7 days"
-                """, parse_mode="MarkdownV2")
+                """, parse_mode="Markdown")
                 return
             
             await state.update_data(deadline=deadline)
@@ -654,7 +647,7 @@ Please select your preferred currency:
             await message.answer(
                 text,
                 reply_markup=get_currency_menu(),
-                parse_mode="MarkdownV2"
+                parse_mode="Markdown"
             )
             
             self._log_with_user_context('info', f"Deadline set: {deadline}", user_id)
@@ -689,43 +682,40 @@ Please select your preferred currency:
                     
                     await state.update_data(pricing=pricing)
                     
-                    # Show order summary with escaped data
-                    safe_service = escape_md(data['service_type'].title())
-                    safe_subject = escape_md(data['subject'])
-                    safe_level = escape_md(data['academic_level'].replace('_', ' ').title())
-                    safe_deadline = escape_md(data['deadline'].strftime('%Y-%m-%d %H:%M'))
-                    safe_currency = escape_md(currency)
-                    safe_requirements = escape_md(data['requirements'][:200])
+                    # Show order summary
+                    requirements_preview = data['requirements'][:200]
+                    if len(data['requirements']) > 200:
+                        requirements_preview += "..."
                     
                     summary_text = f"""
 📋 **Order Summary**
 
-📝 **Service:** {safe_service}
-📚 **Subject:** {safe_subject}
-🎓 **Level:** {safe_level}
-⏰ **Deadline:** {safe_deadline}
+📝 **Service:** {data['service_type'].title()}
+📚 **Subject:** {data['subject']}
+🎓 **Level:** {data['academic_level'].replace('_', ' ').title()}
+⏰ **Deadline:** {data['deadline'].strftime('%Y-%m-%d %H:%M')}
 
 💰 **Pricing:**
-• Base Price: {pricing['base_price']:.2f} {safe_currency}
+• Base Price: {pricing['base_price']:.2f} {currency}
 • Academic Level: {pricing['academic_multiplier']:.1f}x
 • Urgency: {pricing['urgency_multiplier']:.1f}x
-• **Total: {pricing['total_price']:.2f} {safe_currency}**
+• **Total: {pricing['total_price']:.2f} {currency}**
 
 📝 **Requirements:**
-{safe_requirements}{'\\.\\.\\.' if len(data['requirements']) > 200 else ''}
+{requirements_preview}
 
-Do you want to add any special notes? \\(Optional\\)
-Send "skip" to continue without notes\\.
+Do you want to add any special notes? (Optional)
+Send "skip" to continue without notes.
                     """
                     
-                    await callback.message.edit_text(summary_text, parse_mode="MarkdownV2")
+                    await callback.message.edit_text(summary_text, parse_mode="Markdown")
                     await state.set_state(OrderStates.waiting_for_notes)
                     
                     self._log_with_user_context('info', f"Currency selected: {currency}, price: {pricing['total_price']}", user_id)
                     
                 except Exception as e:
                     self._log_with_user_context('error', f"Error calculating pricing: {e}", user_id)
-                    await self._handle_user_error(callback, "❌ Error calculating price\\. Please try again\\.")
+                    await self._handle_user_error(callback, "❌ Error calculating price. Please try again.")
                 
         except Exception as e:
             self._log_with_user_context('error', f"Error in currency selection: {e}", user_id)
@@ -771,14 +761,11 @@ Send "skip" to continue without notes\\.
                     db.refresh(order)
                     
                     # Show payment options
-                    safe_order_number = escape_md(order.order_number)
-                    safe_currency = escape_md(order.currency)
-                    
                     payment_text = f"""
-✅ **Order Created Successfully\\!**
+✅ **Order Created Successfully!**
 
-📋 **Order \\#{safe_order_number}**
-💰 **Total: {order.total_amount:.2f} {safe_currency}**
+📋 **Order #{order.order_number}**
+💰 **Total: {order.total_amount:.2f} {order.currency}**
 
 Please select your payment method:
                     """
@@ -786,7 +773,7 @@ Please select your payment method:
                     await message.answer(
                         payment_text,
                         reply_markup=get_payment_method_menu(order.id),
-                        parse_mode="MarkdownV2"
+                        parse_mode="Markdown"
                     )
                     
                     await state.clear()
@@ -802,7 +789,7 @@ Please select your payment method:
                     
                 except Exception as e:
                     self._log_with_user_context('error', f"Error creating order: {e}", user_id)
-                    await self._handle_user_error(message, "❌ Error creating order\\. Please try again\\.")
+                    await self._handle_user_error(message, "❌ Error creating order. Please try again.")
                 
         except Exception as e:
             self._log_with_user_context('error', f"Error in special notes handler: {e}", user_id)
@@ -822,7 +809,7 @@ Please select your payment method:
                 order = db.query(Order).filter(Order.id == order_id).first()
                 
                 if not order:
-                    await self._handle_user_error(callback, "❌ Order not found\\.")
+                    await self._handle_user_error(callback, "❌ Order not found.")
                     return
                 
                 # Delegate to payment service for processing
@@ -832,7 +819,7 @@ Please select your payment method:
                     self._log_with_user_context('info', f"Payment method {method} processed for order {order.order_number}", user_id)
                 else:
                     self._log_with_user_context('error', f"Payment method {method} failed for order {order.order_number}: {result.get('error')}", user_id)
-                    await self._handle_user_error(callback, result.get('error', "❌ Payment processing failed\\."))
+                    await self._handle_user_error(callback, result.get('error', "❌ Payment processing failed."))
                 
         except Exception as e:
             self._log_with_user_context('error', f"Error in payment method handler: {e}", user_id)
@@ -845,14 +832,11 @@ Please select your payment method:
                 # Create Stripe checkout session
                 session_data = await self.payment_service.create_stripe_session(order, db)
                 
-                safe_order_number = escape_md(order.order_number)
-                safe_currency = escape_md(order.currency)
-                
                 payment_text = f"""
 💳 **Credit/Debit Card Payment**
 
-Order: \\#{safe_order_number}
-Amount: {order.total_amount:.2f} {safe_currency}
+Order: #{order.order_number}
+Amount: {order.total_amount:.2f} {order.currency}
 
 Click the button below to pay securely with Stripe:
                 """
@@ -865,7 +849,7 @@ Click the button below to pay securely with Stripe:
                 await callback.message.edit_text(
                     payment_text,
                     reply_markup=keyboard.as_markup(),
-                    parse_mode="MarkdownV2"
+                    parse_mode="Markdown"
                 )
                 
                 return {'success': True}
@@ -874,33 +858,25 @@ Click the button below to pay securely with Stripe:
                 # Show bank transfer details
                 bank_details = self.payment_service.get_payment_methods()['bank_transfer']['bank_details']
                 
-                safe_order_number = escape_md(order.order_number)
-                safe_currency = escape_md(order.currency)
-                safe_bank_name = escape_md(bank_details['bank_name'])
-                safe_account_name = escape_md(bank_details['account_name'])
-                safe_account_number = escape_md(bank_details['account_number'])
-                safe_iban = escape_md(bank_details['iban'])
-                safe_swift = escape_md(bank_details['swift'])
-                
                 bank_text = f"""
 🏦 **Bank Transfer Payment**
 
-Order: \\#{safe_order_number}
-Amount: {order.total_amount:.2f} {safe_currency}
+Order: #{order.order_number}
+Amount: {order.total_amount:.2f} {order.currency}
 
 **Bank Details:**
-🏛️ Bank: {safe_bank_name}
-👤 Account Name: {safe_account_name}
-🔢 Account Number: {safe_account_number}
-🌐 IBAN: {safe_iban}
-📧 SWIFT: {safe_swift}
+🏛️ Bank: {bank_details['bank_name']}
+👤 Account Name: {bank_details['account_name']}
+🔢 Account Number: {bank_details['account_number']}
+🌐 IBAN: {bank_details['iban']}
+📧 SWIFT: {bank_details['swift']}
 
 **Instructions:**
-1\\. Transfer the exact amount to the above account
-2\\. Upload your receipt using the button below
-3\\. We'll verify your payment within 24 hours
+1. Transfer the exact amount to the above account
+2. Upload your receipt using the button below
+3. We'll verify your payment within 24 hours
 
-⚠️ **Important:** Include order number \\#{safe_order_number} in the transfer reference
+⚠️ **Important:** Include order number #{order.order_number} in the transfer reference
                 """
                 
                 keyboard = InlineKeyboardBuilder()
@@ -911,7 +887,7 @@ Amount: {order.total_amount:.2f} {safe_currency}
                 await callback.message.edit_text(
                     bank_text,
                     reply_markup=keyboard.as_markup(),
-                    parse_mode="MarkdownV2"
+                    parse_mode="Markdown"
                 )
                 
                 return {'success': True}
@@ -935,17 +911,17 @@ Amount: {order.total_amount:.2f} {safe_currency}
             text = """
 📎 **Upload Payment Receipt**
 
-Please upload your bank transfer receipt or screenshot\\.
+Please upload your bank transfer receipt or screenshot.
 
 **Supported formats:**
 • PDF documents
-• Images \\(JPG, PNG\\)
+• Images (JPG, PNG)
 • Screenshots
 
 **File size limit:** 20MB
             """
             
-            await callback.message.edit_text(text, parse_mode="MarkdownV2")
+            await callback.message.edit_text(text, parse_mode="Markdown")
             
             self._log_with_user_context('info', f"Receipt upload initiated for order {order_id}", user_id)
             
@@ -966,13 +942,13 @@ Please upload your bank transfer receipt or screenshot\\.
             
             # General file upload (requirements, etc.)
             if not message.document:
-                await message.answer("❌ Please send a valid document file\\.", parse_mode="MarkdownV2")
+                await message.answer("❌ Please send a valid document file.", parse_mode="Markdown")
                 return
             
             # File size check (20MB limit)
             max_size = 20 * 1024 * 1024  # 20MB
             if message.document.file_size > max_size:
-                await message.answer("❌ File too large\\. Maximum size is 20MB\\.", parse_mode="MarkdownV2")
+                await message.answer("❌ File too large. Maximum size is 20MB.", parse_mode="Markdown")
                 return
             
             # Get file info and download securely
@@ -983,18 +959,16 @@ Please upload your bank transfer receipt or screenshot\\.
             # Download file
             await self.bot.download_file(file_info.file_path, file_path)
             
-            safe_display_name = escape_md(message.document.file_name)
-            
             await message.answer(
-                f"✅ File uploaded successfully\\!\n📎 {safe_display_name}",
-                parse_mode="MarkdownV2"
+                f"✅ File uploaded successfully!\n📎 {message.document.file_name}",
+                parse_mode="Markdown"
             )
             
             self._log_with_user_context('info', f"File uploaded: {safe_filename}", user_id)
             
         except Exception as e:
             self._log_with_user_context('error', f"Error handling file upload: {e}", user_id)
-            await self._handle_user_error(message, "❌ Error uploading file\\. Please try again\\.")
+            await self._handle_user_error(message, "❌ Error uploading file. Please try again.")
     
     async def handle_bank_receipt(self, message: Message, state: FSMContext):
         """Handle bank receipt upload with enhanced security"""
@@ -1004,25 +978,25 @@ Please upload your bank transfer receipt or screenshot\\.
             order_id = data.get('order_id')
             
             if not order_id:
-                await message.answer("❌ No order found\\. Please start over\\.", parse_mode="MarkdownV2")
+                await message.answer("❌ No order found. Please start over.", parse_mode="Markdown")
                 await state.clear()
                 return
             
             if not message.document:
-                await message.answer("❌ Please send a valid document file\\.", parse_mode="MarkdownV2")
+                await message.answer("❌ Please send a valid document file.", parse_mode="Markdown")
                 return
             
             # File size check (20MB limit)
             max_size = 20 * 1024 * 1024  # 20MB
             if message.document.file_size > max_size:
-                await message.answer("❌ File too large\\. Maximum size is 20MB\\.", parse_mode="MarkdownV2")
+                await message.answer("❌ File too large. Maximum size is 20MB.", parse_mode="Markdown")
                 return
             
             with DatabaseManager.get_session() as db:
                 order = db.query(Order).filter(Order.id == order_id).first()
                 
                 if not order:
-                    await message.answer("❌ Order not found\\.", parse_mode="MarkdownV2")
+                    await message.answer("❌ Order not found.", parse_mode="Markdown")
                     await state.clear()
                     return
                 
@@ -1039,22 +1013,18 @@ Please upload your bank transfer receipt or screenshot\\.
                     # Process bank transfer
                     result = await self.payment_service.process_bank_transfer(order, file_path, db)
                     
-                    safe_order_number = escape_md(order.order_number)
-                    safe_filename_display = escape_md(message.document.file_name)
-                    safe_message = escape_md(result['message'])
-                    
                     await message.answer(
                         f"""
-✅ **Receipt Uploaded Successfully\\!**
+✅ **Receipt Uploaded Successfully!**
 
-📋 Order: \\#{safe_order_number}
-📎 File: {safe_filename_display}
+📋 Order: #{order.order_number}
+📎 File: {message.document.file_name}
 
-{safe_message}
+{result['message']}
 
-We'll notify you once the payment is verified\\.
+We'll notify you once the payment is verified.
                         """,
-                        parse_mode="MarkdownV2"
+                        parse_mode="Markdown"
                     )
                     
                     await state.clear()
@@ -1070,7 +1040,7 @@ We'll notify you once the payment is verified\\.
                     
                 except Exception as e:
                     self._log_with_user_context('error', f"Error processing bank receipt: {e}", user_id)
-                    await self._handle_user_error(message, "❌ Error processing receipt\\. Please try again\\.")
+                    await self._handle_user_error(message, "❌ Error processing receipt. Please try again.")
                 
         except Exception as e:
             self._log_with_user_context('error', f"Error in bank receipt handler: {e}", user_id)
@@ -1089,9 +1059,9 @@ We'll notify you once the payment is verified\\.
                 
                 if not orders:
                     await callback.message.edit_text(
-                        "📋 **Your Orders**\n\nYou haven't placed any orders yet\\.\n\nClick 'New Order' to get started\\!",
+                        "📋 **Your Orders**\n\nYou haven't placed any orders yet.\n\nClick 'New Order' to get started!",
                         reply_markup=get_main_menu(),
-                        parse_mode="MarkdownV2"
+                        parse_mode="Markdown"
                     )
                     return
                 
@@ -1108,10 +1078,7 @@ We'll notify you once the payment is verified\\.
                         'cancelled': '❌'
                     }.get(order.status, '❓')
                     
-                    safe_order_number = escape_md(order.order_number)
-                    safe_subject = escape_md(order.subject[:30])
-                    
-                    orders_text += f"{status_emoji} **\\#{safe_order_number}** \\- {safe_subject}\\.\\.\\.\n"
+                    orders_text += f"{status_emoji} **#{order.order_number}** - {order.subject[:30]}...\n"
                     keyboard.button(
                         text=f"📋 {order.order_number}",
                         callback_data=f"order_view_{order.id}"
@@ -1124,7 +1091,7 @@ We'll notify you once the payment is verified\\.
                 await callback.message.edit_text(
                     orders_text,
                     reply_markup=keyboard.as_markup(),
-                    parse_mode="MarkdownV2"
+                    parse_mode="Markdown"
                 )
                 
                 self._log_with_user_context('info', f"Orders list viewed, count: {len(orders)}", user_id)
@@ -1139,11 +1106,12 @@ We'll notify you once the payment is verified\\.
         try:
             await callback.answer()
             
+            support_email = settings.support_email or 'support@example.com'
             support_text = f"""
 🆘 **Support & Help**
 
 **Contact Information:**
-📧 Email: {escape_md(settings.support_email or 'support@example.com')}
+📧 Email: {support_email}
 💬 Telegram: Available 24/7
 
 **Common Issues:**
@@ -1153,21 +1121,21 @@ We'll notify you once the payment is verified\\.
 • General inquiries
 
 **Response Time:**
-🕐 Usually within 2\\-4 hours
+🕐 Usually within 2-4 hours
 ⚡ Urgent issues: Contact immediately
 
 How can we help you today?
             """
             
             keyboard = InlineKeyboardBuilder()
-            keyboard.button(text="📧 Send Email", url=f"mailto:{settings.support_email or 'support@example.com'}")
+            keyboard.button(text="📧 Send Email", url=f"mailto:{support_email}")
             keyboard.button(text="🔙 Main Menu", callback_data="main_menu")
             keyboard.adjust(1)
             
             await callback.message.edit_text(
                 support_text,
                 reply_markup=keyboard.as_markup(),
-                parse_mode="MarkdownV2"
+                parse_mode="Markdown"
             )
             
             self._log_with_user_context('info', "Support page accessed", user_id)
@@ -1185,19 +1153,19 @@ How can we help you today?
             text = """
 ⭐ **Feedback**
 
-We value your feedback\\! Please rate your experience:
+We value your feedback! Please rate your experience:
 
 **Rating Scale:**
-⭐ 1 \\- Poor
-⭐⭐ 2 \\- Fair  
-⭐⭐⭐ 3 \\- Good
-⭐⭐⭐⭐ 4 \\- Very Good
-⭐⭐⭐⭐⭐ 5 \\- Excellent
+⭐ 1 - Poor
+⭐⭐ 2 - Fair  
+⭐⭐⭐ 3 - Good
+⭐⭐⭐⭐ 4 - Very Good
+⭐⭐⭐⭐⭐ 5 - Excellent
 
 Please send a number from 1 to 5:
             """
             
-            await callback.message.edit_text(text, parse_mode="MarkdownV2")
+            await callback.message.edit_text(text, parse_mode="Markdown")
             await state.set_state(FeedbackStates.waiting_for_rating)
             
             self._log_with_user_context('info', "Feedback process started", user_id)
@@ -1215,21 +1183,21 @@ Please send a number from 1 to 5:
                 if rating < 1 or rating > 5:
                     raise ValueError("Rating out of range")
             except ValueError:
-                await message.answer("❌ Please send a valid rating from 1 to 5\\.", parse_mode="MarkdownV2")
+                await message.answer("❌ Please send a valid rating from 1 to 5.", parse_mode="Markdown")
                 return
             
             await state.update_data(rating=rating)
             
             stars = "⭐" * rating
             text = f"""
-{stars} **Thank you for your rating\\!**
+{stars} **Thank you for your rating!**
 
-Would you like to add any comments? \\(Optional\\)
+Would you like to add any comments? (Optional)
 
 Send your comments or type "skip" to finish:
             """
             
-            await message.answer(text, parse_mode="MarkdownV2")
+            await message.answer(text, parse_mode="Markdown")
             await state.set_state(FeedbackStates.waiting_for_comment)
             
             self._log_with_user_context('info', f"Feedback rating: {rating}/5", user_id)
@@ -1264,14 +1232,14 @@ Send your comments or type "skip" to finish:
                     
                     await message.answer(
                         f"""
-✅ **Feedback Submitted\\!**
+✅ **Feedback Submitted!**
 
 {stars} Rating: {data['rating']}/5
 
-Thank you for helping us improve our service\\!
+Thank you for helping us improve our service!
                         """,
                         reply_markup=get_main_menu(),
-                        parse_mode="MarkdownV2"
+                        parse_mode="Markdown"
                     )
                     
                     await state.clear()
@@ -1280,7 +1248,7 @@ Thank you for helping us improve our service\\!
                     
                 except Exception as e:
                     self._log_with_user_context('error', f"Error saving feedback: {e}", user_id)
-                    await self._handle_user_error(message, "❌ Error saving feedback\\. Please try again\\.")
+                    await self._handle_user_error(message, "❌ Error saving feedback. Please try again.")
                 
         except Exception as e:
             self._log_with_user_context('error', f"Error in feedback comment handler: {e}", user_id)
@@ -1295,14 +1263,14 @@ Thank you for helping us improve our service\\!
             text = """
 ❓ **Unknown Action**
 
-Sorry, I didn't understand that action\\. 
+Sorry, I didn't understand that action. 
 Let's return to the main menu:
             """
             
             await callback.message.edit_text(
                 text,
                 reply_markup=get_main_menu(),
-                parse_mode="MarkdownV2"
+                parse_mode="Markdown"
             )
             
             self._log_with_user_context('warning', f"Unknown callback: {callback.data}", user_id)
@@ -1355,9 +1323,9 @@ Let's return to the main menu:
             if hasattr(event, 'message') and event.message:
                 try:
                     await event.message.answer(
-                        "❌ An unexpected error occurred\\. Please try again or contact support\\.",
+                        "❌ An unexpected error occurred. Please try again or contact support.",
                         reply_markup=get_main_menu(),
-                        parse_mode="MarkdownV2"
+                        parse_mode="Markdown"
                     )
                 except Exception as send_error:
                     logger.error(f"Failed to send error message to user: {send_error}")
