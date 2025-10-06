@@ -1,47 +1,32 @@
-# File: app/services/notification.py
-import logging
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import smtplib
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
-from typing import Optional, Dict, Any
-from aiogram import Bot
-from config.config import settings
-
-logger = logging.getLogger(__name__)
+from typing import Optional
 
 class NotificationService:
-    """Service for handling customer notifications via email and Telegram"""
-    
-    def __init__(self):
-        self.smtp_host = settings.smtp_host
-        self.smtp_port = settings.smtp_port
-        self.smtp_user = settings.smtp_user
-        self.smtp_password = settings.smtp_password
-        self.bot_token = settings.telegram_bot_token
-        self.admin_id = settings.telegram_admin_id
-        
-    async def send_email(self, to_email: str, subject: str, message: str, html_message: Optional[str] = None) -> bool:
-        """Send email notification to customer"""
-        try:
-            msg = MimeMultipart('alternative')
-            msg['From'] = self.smtp_user
-            msg['To'] = to_email
-            msg['Subject'] = subject
-            
-            # Add plain text part
-            text_part = MimeText(message, 'plain', 'utf-8')
-            msg.attach(text_part)
-            
-            # Add HTML part if provided
-            if html_message:
-                html_part = MimeText(html_message, 'html', 'utf-8')
-                msg.attach(html_part)
-            
-            # Send email
-            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
-                server.starttls()
-                server.login(self.smtp_user, self.smtp_password)
-                server.send_message(msg)
+    def __init__(self, smtp_server: str, smtp_port: int, username: str, password: str):
+        self.smtp_server = smtp_server
+        self.smtp_port = smtp_port
+        self.username = username
+        self.password = password
+
+    def send_email(self, to_email: str, subject: str, body: str, html: Optional[str] = None):
+        """Send an email with optional HTML content."""
+        message = MIMEMultipart("alternative")
+        message["From"] = self.username
+        message["To"] = to_email
+        message["Subject"] = subject
+
+        message.attach(MIMEText(body, "plain"))
+
+        if html:
+            message.attach(MIMEText(html, "html"))
+
+        with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+            server.starttls()
+            server.login(self.username, self.password)
+            server.send_message(message)
+
             
             logger.info(f"Email sent successfully to {to_email}")
             return True
