@@ -1,0 +1,66 @@
+# Student Services Platform - Environment Configuration
+# Copy this file to .env and fill in your actual values
+
+# ================================
+# Environment Configuration
+# ================================
+ENV=production
+DEBUG=false
+APP_URL=https://yourdomain.com
+
+# ================================
+# Database Configuration
+# ================================
+DB_NAME=student_services
+DB_USER=student_services
+DB_PASSWORD=your_secure_database_password_change_this
+
+# ================================
+# Application Security
+# ================================
+SECRET_KEY=your-secret-key-generate-a-random-32-character-string-here
+
+# ================================
+# Admin Configuration
+# ================================
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your_secure_admin_password_change_this
+
+# ================================
+# Telegram Bot Configuration
+# ================================
+# Get your bot token from @BotFather on Telegram
+TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
+# Get your Telegram user ID (you can use @userinfobot)
+TELEGRAM_ADMIN_ID=123456789
+
+# ================================
+# Payment Configuration - Stripe
+# ================================
+# Get these from your Stripe dashboard (https://dashboard.stripe.com/apikeys)
+STRIPE_PUBLIC_KEY=pk_test_your_stripe_public_key_here
+STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key_here
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
+
+# ================================
+# Email Configuration (Optional)
+# ================================
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+
+# ================================
+# Business Information
+# ================================
+BUSINESS_NAME=Student Services Platform
+SUPPORT_EMAIL=support@yourdomain.com
+
+# ================================
+# Bank Transfer Details (Optional)
+# ================================
+BANK_NAME=Your Bank Name
+BANK_ACCOUNT_NAME=Your Company Name
+BANK_ACCOUNT_NUMBER=1234567890
+BANK_IBAN=JO94ARAB1234567890123456789012
+BANK_SWIFT=ARABJOAX
