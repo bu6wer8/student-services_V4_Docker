@@ -116,56 +116,58 @@ async def admin_login(
     password: str = Form(...)
 ):
     """
-    Simple admin login endpoint
+    Simple admin login endpoint with proper cookie handling
     """
     try:
         # Authenticate user
         if not auth_service.authenticate_admin(username, password):
-            logger.warning(f"Failed login attempt for username: {username}")
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Invalid username or password."}
-            )
+            response.status_code = 401
+            return {"detail": "Invalid username or password."}
         
         # Create session
         ip_address = auth_service.get_client_ip(request)
         session_id = auth_service.create_session(username, ip_address)
         
-        # Set cookie
+        # Set cookie on the Response parameter
         response.set_cookie(
             key="admin_session",
             value=session_id,
             max_age=8 * 60 * 60,  # 8 hours
             httponly=True,
-            secure=False,  # Set to True in production with HTTPS
+            secure=False,  # True if using HTTPS in production
             samesite="lax"
         )
         
-        logger.info(f"Admin login successful: {username}")
-        
-        return JSONResponse(
-            status_code=200,
-            content={"detail": "Login successful", "redirect": "/admin"}
-        )
-        
+        # Return JSON content
+        return {"detail": "Login successful", "redirect": "/admin"}
+    
     except Exception as e:
         logger.error(f"Login error: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"detail": "An error occurred during login. Please try again."}
-        )
+        response.status_code = 500
+        return {"detail": "An error occurred during login. Please try again."}
 
 @app.post("/admin/logout")
-async def admin_logout(request: Request, response: Response):
+async def admin_logout(request: Request):
     """
-    Admin logout endpoint
+    Admin logout endpoint with proper cookie cleanup
     """
     session_id = request.cookies.get("admin_session")
     if session_id:
         auth_service.invalidate_session(session_id)
-        response.delete_cookie("admin_session")
     
-    return RedirectResponse(url="/admin/login", status_code=302)
+    response = RedirectResponse(url="/admin/login", status_code=302)
+    
+    # Delete cookie with matching attributes from login
+    response.delete_cookie(
+        key="admin_session",
+        path="/",
+        domain=None,
+        secure=False,  # Match login endpoint setting
+        httponly=True,  # Match login endpoint setting  
+        samesite="lax"  # Match login endpoint setting
+     )
+    
+    return response
 
 # -------------------------------------------------
 # Protected Admin Routes
@@ -217,10 +219,7 @@ async def admin_orders(request: Request, admin_session: dict = Depends(get_curre
     """
     try:
         db = next(get_db())
-        
-        # Get all orders with user information
         orders = db.query(Order).join(User).order_by(Order.created_at.desc()).all()
-        
         db.close()
         
         return templates.TemplateResponse("admin_orders.html", {
@@ -240,8 +239,6 @@ async def admin_customers(request: Request, admin_session: dict = Depends(get_cu
     """
     try:
         db = next(get_db())
-        
-        # Get all users with order statistics
         users = db.query(User).all()
         
         # Add order statistics for each user
@@ -271,10 +268,7 @@ async def admin_payments(request: Request, admin_session: dict = Depends(get_cur
     """
     try:
         db = next(get_db())
-        
-        # Get all payments
         payments = db.query(Payment).join(Order).join(User).order_by(Payment.created_at.desc()).all()
-        
         db.close()
         
         return templates.TemplateResponse("admin_payments.html", {
@@ -295,7 +289,6 @@ async def admin_analytics(request: Request, admin_session: dict = Depends(get_cu
     try:
         db = next(get_db())
         
-        # Get analytics data
         analytics_data = {
             'total_orders': db.query(Order).count(),
             'total_revenue': db.query(Order).filter(Order.payment_status == 'paid').with_entities(
@@ -304,10 +297,9 @@ async def admin_analytics(request: Request, admin_session: dict = Depends(get_cu
             'avg_order_value': db.query(Order).filter(Order.payment_status == 'paid').with_entities(
                 db.func.avg(Order.total_amount)
             ).scalar() or 0,
-            'conversion_rate': 0  # Calculate based on your metrics
+            'conversion_rate': 0
         }
         
-        # Monthly revenue data (last 12 months)
         monthly_revenue = []
         for i in range(12):
             month_start = datetime.now().replace(day=1) - timedelta(days=30*i)
@@ -325,7 +317,6 @@ async def admin_analytics(request: Request, admin_session: dict = Depends(get_cu
             })
         
         monthly_revenue.reverse()
-        
         db.close()
         
         return templates.TemplateResponse("admin_analytics.html", {
@@ -427,7 +418,6 @@ async def get_users(admin_session: dict = Depends(get_current_admin), db: Sessio
         
         users_data = []
         for user in users:
-            # Get user statistics
             order_count = db.query(Order).filter(Order.user_id == user.id).count()
             total_spent = db.query(Order).filter(
                 Order.user_id == user.id,
