@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Student Services Admin</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico">
+    
+    <!-- External CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- UAE Dirham Symbol -->
+    <link href="https://cdn.jsdelivr.net/npm/new-dirham-symbol@1.0.3/dist/uae-symbol.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static_2/css/admin.css">
+    <link rel="stylesheet" href="/static_2/css/components.css">
+    <link rel="stylesheet" href="/static_2/css/responsive.css">
+    <link rel="stylesheet" href="/static_2/css/admin_enhanced.css">
+</head>
+<body class="admin-body">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Student Services</span>
+            </div>
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <ul>
+                <li class="nav-item active">
+                    <a href="/admin" class="nav-link">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/orders" class="nav-link">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>Orders</span>
+                        <span class="badge" id="pendingOrdersBadge">{{ pending_orders_count }}</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/customers" class="nav-link">
+                        <i class="fas fa-users"></i>
+                        <span>Customers</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/payments" class="nav-link">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Payments</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/analytics" class="nav-link">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Analytics</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/settings" class="nav-link">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <div class="admin-profile">
+                <div class="profile-avatar">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <div class="profile-info">
+                    <span class="profile-name">Admin</span>
+                    <span class="profile-role">Administrator</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Dashboard</h1>
+            </div>
+            
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-icon" id="refreshBtn" title="Refresh Data">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    
+                    <div class="connection-status" id="connectionStatus">
+                        <i class="fas fa-circle"></i>
+                        <span>Connected</span>
+                    </div>
+                    
+                    <div class="dropdown">
+                        <button class="btn btn-icon dropdown-toggle" id="adminMenuToggle">
+                            <i class="fas fa-user-circle"></i>
+                        </button>
+                        <div class="dropdown-menu" id="adminMenu">
+                            <a href="#" class="dropdown-item">
+                                <i class="fas fa-user"></i> Profile
+                            </a>
+                            <a href="/admin/settings" class="dropdown-item">
+                                <i class="fas fa-cog"></i> Settings
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a href="#" class="dropdown-item text-danger" id="logoutBtn">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon bg-primary">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ stats.total_orders }}</h3>
+                        <p>Total Orders</p>
+                        <span class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i> +12%
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon bg-warning">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ stats.pending_orders }}</h3>
+                        <p>Pending Orders</p>
+                        <span class="stat-change neutral">
+                            <i class="fas fa-minus"></i> 0%
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon bg-info">
+                        <i class="fas fa-spinner"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ stats.in_progress_orders }}</h3>
+                        <p>In Progress</p>
+                        <span class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i> +8%
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon bg-success">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ stats.completed_orders }}</h3>
+                        <p>Completed</p>
+                        <span class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i> +15%
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon bg-money">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3><span class="uae-dirham">د.إ</span> {{ "%.2f"|format(stats.total_revenue) }}</h3>
+                        <p>Total Revenue</p>
+                        <span class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i> +23%
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <h2>Quick Actions</h2>
+                <div class="action-buttons">
+                    <a href="/admin/orders" class="btn btn-primary">
+                        <i class="fas fa-shopping-cart"></i> View Orders
+                    </a>
+                    <button class="btn btn-success" onclick="exportData()">
+                        <i class="fas fa-download"></i> Export Data
+                    </button>
+                    <a href="/admin/analytics" class="btn btn-info">
+                        <i class="fas fa-chart-bar"></i> View Analytics
+                    </a>
+                    <a href="/admin/settings" class="btn btn-warning">
+                        <i class="fas fa-database"></i> Database Tools
+                    </a>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="recent-activity">
+                <h2>Recent Activity</h2>
+                <div class="activity-list" id="recentActivity">
+                    {% if recent_activity %}
+                        {% for activity in recent_activity %}
+                        <div class="activity-item">
+                            <div class="activity-icon">
+                                <i class="fas fa-plus"></i>
+                            </div>
+                            <div class="activity-content">
+                                <h4>{{ activity.title }}</h4>
+                                <p>{{ activity.description }}</p>
+                                <small>{{ activity.date.strftime('%Y-%m-%d %H:%M') if activity.date else 'N/A' }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No recent activity</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <!-- Simple JavaScript for basic functionality -->
+    <script>
+        // Simple sidebar toggle
+        document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        });
+        
+        // Mobile menu toggle
+        document.getElementById('mobileMenuToggle')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('mobile-open');
+        });
+        
+        // Dropdown toggle
+        document.getElementById('adminMenuToggle')?.addEventListener('click', function() {
+            document.getElementById('adminMenu').classList.toggle('show');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown')) {
+                document.getElementById('adminMenu')?.classList.remove('show');
+            }
+        });
+        
+        // Refresh page
+        document.getElementById('refreshBtn')?.addEventListener('click', function() {
+            location.reload();
+        });
+        
+        // Export data function
+        function exportData() {
+            alert('Export functionality will be implemented soon');
+        }
+        
+        // Auto-refresh stats every 30 seconds
+        setInterval(function() {
+            // You can implement AJAX refresh here if needed
+        }, 30000);
+    </script>
+</body>
+</html>

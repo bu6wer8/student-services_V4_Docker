@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - Student Services Admin</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico">
+    
+    <!-- External CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- UAE Dirham Symbol -->
+    <link href="https://cdn.jsdelivr.net/npm/new-dirham-symbol@1.0.3/dist/uae-symbol.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static_2/css/admin.css">
+    <link rel="stylesheet" href="/static_2/css/components.css">
+    <link rel="stylesheet" href="/static_2/css/responsive.css">
+    <link rel="stylesheet" href="/static_2/css/admin_enhanced.css">
+</head>
+<body class="admin-body">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Student Services</span>
+            </div>
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <ul>
+                <li class="nav-item">
+                    <a href="/admin" class="nav-link">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/orders" class="nav-link">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>Orders</span>
+                        <span class="badge" id="pendingOrdersBadge">{{ pending_orders_count }}</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/customers" class="nav-link">
+                        <i class="fas fa-users"></i>
+                        <span>Customers</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/payments" class="nav-link">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Payments</span>
+                    </a>
+                </li>
+                <li class="nav-item active">
+                    <a href="/admin/analytics" class="nav-link">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Analytics</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/settings" class="nav-link">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <div class="admin-profile">
+                <div class="profile-avatar">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <div class="profile-info">
+                    <span class="profile-name">Admin</span>
+                    <span class="profile-role">Administrator</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Analytics & Reports</h1>
+            </div>
+            
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-icon" id="refreshBtn" title="Refresh Data">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    
+                    <div class="connection-status" id="connectionStatus">
+                        <i class="fas fa-circle"></i>
+                        <span>Connected</span>
+                    </div>
+                    
+                    <div class="dropdown">
+                        <button class="btn btn-icon dropdown-toggle" id="adminMenuToggle">
+                            <i class="fas fa-user-circle"></i>
+                        </button>
+                        <div class="dropdown-menu" id="adminMenu">
+                            <a href="#" class="dropdown-item">
+                                <i class="fas fa-user"></i> Profile
+                            </a>
+                            <a href="/admin/settings" class="dropdown-item">
+                                <i class="fas fa-cog"></i> Settings
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a href="#" class="dropdown-item text-danger" id="logoutBtn">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <div class="section-header">
+                <h2><i class="fas fa-chart-line"></i> Analytics & Reports</h2>
+                <div class="section-actions">
+                    <select id="timeRange" class="form-select">
+                        <option value="7">Last 7 days</option>
+                        <option value="30" selected>Last 30 days</option>
+                        <option value="90">Last 90 days</option>
+                        <option value="365">Last year</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="generateReport()">
+                        <i class="fas fa-file-pdf"></i> Generate Report
+                    </button>
+                    <button class="btn btn-success" onclick="exportAnalytics()">
+                        <i class="fas fa-download"></i> Export Data
+                    </button>
+                </div>
+            </div>
+
+            <!-- Key Metrics -->
+            <div class="analytics-grid">
+                <div class="analytics-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-chart-bar"></i> Revenue Overview</h3>
+                        <span class="time-period">Last 30 days</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="metric-value">
+                            <span class="uae-dirham">د.إ</span> 12,450.00
+                        </div>
+                        <div class="metric-change positive">
+                            <i class="fas fa-arrow-up"></i> +23.5% from last month
+                        </div>
+                        <div class="chart-placeholder">
+                            <div class="chart-bars">
+                                <div class="bar" style="height: 60%"></div>
+                                <div class="bar" style="height: 80%"></div>
+                                <div class="bar" style="height: 45%"></div>
+                                <div class="bar" style="height: 90%"></div>
+                                <div class="bar" style="height: 75%"></div>
+                                <div class="bar" style="height: 95%"></div>
+                                <div class="bar" style="height: 85%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-shopping-cart"></i> Order Trends</h3>
+                        <span class="time-period">Last 30 days</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="metric-value">
+                            42 Orders
+                        </div>
+                        <div class="metric-change positive">
+                            <i class="fas fa-arrow-up"></i> +18.2% from last month
+                        </div>
+                        <div class="chart-placeholder">
+                            <div class="line-chart">
+                                <svg width="100%" height="100" viewBox="0 0 300 100">
+                                    <polyline points="0,80 50,60 100,40 150,30 200,20 250,15 300,10" 
+                                              fill="none" stroke="#3b82f6" stroke-width="2"/>
+                                    <circle cx="300" cy="10" r="3" fill="#3b82f6"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-users"></i> Customer Growth</h3>
+                        <span class="time-period">Last 30 days</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="metric-value">
+                            28 New Customers
+                        </div>
+                        <div class="metric-change positive">
+                            <i class="fas fa-arrow-up"></i> +31.4% from last month
+                        </div>
+                        <div class="progress-ring">
+                            <svg width="80" height="80">
+                                <circle cx="40" cy="40" r="30" stroke="#e5e7eb" stroke-width="8" fill="none"/>
+                                <circle cx="40" cy="40" r="30" stroke="#10b981" stroke-width="8" fill="none"
+                                        stroke-dasharray="188" stroke-dashoffset="47" transform="rotate(-90 40 40)"/>
+                            </svg>
+                            <div class="progress-text">75%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-percentage"></i> Conversion Rate</h3>
+                        <span class="time-period">Last 30 days</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="metric-value">
+                            68.5%
+                        </div>
+                        <div class="metric-change positive">
+                            <i class="fas fa-arrow-up"></i> +5.2% from last month
+                        </div>
+                        <div class="conversion-funnel">
+                            <div class="funnel-stage" style="width: 100%">
+                                <span>Inquiries: 100</span>
+                            </div>
+                            <div class="funnel-stage" style="width: 85%">
+                                <span>Quotes: 85</span>
+                            </div>
+                            <div class="funnel-stage" style="width: 68.5%">
+                                <span>Orders: 68</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Service Performance -->
+            <div class="analytics-section">
+                <h3><i class="fas fa-cogs"></i> Service Performance</h3>
+                <div class="service-stats">
+                    <div class="service-item">
+                        <div class="service-info">
+                            <h4>Assignment Writing</h4>
+                            <p>Most popular service</p>
+                        </div>
+                        <div class="service-metrics">
+                            <div class="metric">
+                                <span class="metric-label">Orders</span>
+                                <span class="metric-value">24</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Revenue</span>
+                                <span class="metric-value"><span class="uae-dirham">د.إ</span> 7,200</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Avg. Price</span>
+                                <span class="metric-value"><span class="uae-dirham">د.إ</span> 300</span>
+                            </div>
+                        </div>
+                        <div class="service-progress">
+                            <div class="progress-bar" style="width: 85%"></div>
+                        </div>
+                    </div>
+
+                    <div class="service-item">
+                        <div class="service-info">
+                            <h4>Research Papers</h4>
+                            <p>High-value service</p>
+                        </div>
+                        <div class="service-metrics">
+                            <div class="metric">
+                                <span class="metric-label">Orders</span>
+                                <span class="metric-value">12</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Revenue</span>
+                                <span class="metric-value"><span class="uae-dirham">د.إ</span> 3,600</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Avg. Price</span>
+                                <span class="metric-value"><span class="uae-dirham">د.إ</span> 500</span>
+                            </div>
+                        </div>
+                        <div class="service-progress">
+                            <div class="progress-bar" style="width: 60%"></div>
+                        </div>
+                    </div>
+
+                    <div class="service-item">
+                        <div class="service-info">
+                            <h4>Thesis Writing</h4>
+                            <p>Premium service</p>
+                        </div>
+                        <div class="service-metrics">
+                            <div class="metric">
+                                <span class="metric-label">Orders</span>
+                                <span class="metric-value">6</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Revenue</span>
+                                <span class="metric-value"><span class="uae-dirham">د.إ</span> 1,650</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Avg. Price</span>
+                                <span class="metric-value"><span class="uae-dirham">د.إ</span> 750</span>
+                            </div>
+                        </div>
+                        <div class="service-progress">
+                            <div class="progress-bar" style="width: 40%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Customer Insights -->
+            <div class="analytics-section">
+                <h3><i class="fas fa-user-chart"></i> Customer Insights</h3>
+                <div class="insights-grid">
+                    <div class="insight-card">
+                        <h4>Top Customers</h4>
+                        <div class="customer-list">
+                            <div class="customer-item">
+                                <div class="customer-avatar">JD</div>
+                                <div class="customer-details">
+                                    <strong>John Doe</strong>
+                                    <small>5 orders • <span class="uae-dirham">د.إ</span> 1,500</small>
+                                </div>
+                            </div>
+                            <div class="customer-item">
+                                <div class="customer-avatar">AA</div>
+                                <div class="customer-details">
+                                    <strong>Ahmed Ali</strong>
+                                    <small>4 orders • <span class="uae-dirham">د.إ</span> 1,200</small>
+                                </div>
+                            </div>
+                            <div class="customer-item">
+                                <div class="customer-avatar">SF</div>
+                                <div class="customer-details">
+                                    <strong>Sara Fatima</strong>
+                                    <small>3 orders • <span class="uae-dirham">د.إ</span> 900</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="insight-card">
+                        <h4>Geographic Distribution</h4>
+                        <div class="geo-stats">
+                            <div class="geo-item">
+                                <span class="country">🇦🇪 UAE</span>
+                                <div class="geo-bar">
+                                    <div class="bar-fill" style="width: 85%"></div>
+                                </div>
+                                <span class="percentage">85%</span>
+                            </div>
+                            <div class="geo-item">
+                                <span class="country">🇸🇦 Saudi Arabia</span>
+                                <div class="geo-bar">
+                                    <div class="bar-fill" style="width: 10%"></div>
+                                </div>
+                                <span class="percentage">10%</span>
+                            </div>
+                            <div class="geo-item">
+                                <span class="country">🌍 Others</span>
+                                <div class="geo-bar">
+                                    <div class="bar-fill" style="width: 5%"></div>
+                                </div>
+                                <span class="percentage">5%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="insight-card">
+                        <h4>Order Status Distribution</h4>
+                        <div class="status-chart">
+                            <div class="donut-chart">
+                                <svg width="120" height="120">
+                                    <circle cx="60" cy="60" r="40" stroke="#10b981" stroke-width="20" fill="none"
+                                            stroke-dasharray="125 251" transform="rotate(-90 60 60)"/>
+                                    <circle cx="60" cy="60" r="40" stroke="#3b82f6" stroke-width="20" fill="none"
+                                            stroke-dasharray="75 251" stroke-dashoffset="-125" transform="rotate(-90 60 60)"/>
+                                    <circle cx="60" cy="60" r="40" stroke="#f59e0b" stroke-width="20" fill="none"
+                                            stroke-dasharray="50 251" stroke-dashoffset="-200" transform="rotate(-90 60 60)"/>
+                                </svg>
+                            </div>
+                            <div class="status-legend">
+                                <div class="legend-item">
+                                    <span class="legend-color" style="background: #10b981"></span>
+                                    <span>Completed (50%)</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-color" style="background: #3b82f6"></span>
+                                    <span>In Progress (30%)</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-color" style="background: #f59e0b"></span>
+                                    <span>Pending (20%)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="analytics-section">
+                <h3><i class="fas fa-tachometer-alt"></i> Performance Metrics</h3>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h4>Avg. Completion Time</h4>
+                            <div class="metric-value">3.2 days</div>
+                            <div class="metric-change positive">
+                                <i class="fas fa-arrow-down"></i> -0.5 days
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h4>Customer Satisfaction</h4>
+                            <div class="metric-value">4.8/5</div>
+                            <div class="metric-change positive">
+                                <i class="fas fa-arrow-up"></i> +0.2
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-redo"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h4>Repeat Customer Rate</h4>
+                            <div class="metric-value">65%</div>
+                            <div class="metric-change positive">
+                                <i class="fas fa-arrow-up"></i> +8%
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h4>Refund Rate</h4>
+                            <div class="metric-value">2.1%</div>
+                            <div class="metric-change negative">
+                                <i class="fas fa-arrow-up"></i> +0.3%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <script>
+        // Basic functionality
+        document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        });
+        
+        document.getElementById('mobileMenuToggle')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('mobile-open');
+        });
+        
+        document.getElementById('adminMenuToggle')?.addEventListener('click', function() {
+            document.getElementById('adminMenu').classList.toggle('show');
+        });
+        
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown')) {
+                document.getElementById('adminMenu')?.classList.remove('show');
+            }
+        });
+        
+        document.getElementById('refreshBtn')?.addEventListener('click', function() {
+            location.reload();
+        });
+        
+        // Time range filter
+        document.getElementById('timeRange')?.addEventListener('change', function() {
+            const range = this.value;
+            console.log(`Loading analytics for ${range} days`);
+            // TODO: Implement actual data filtering
+            showToast(`Analytics updated for last ${range} days`, 'info');
+        });
+        
+        // Analytics functions
+        function generateReport() {
+            showToast('Generating analytics report...', 'info');
+            // TODO: Implement PDF report generation
+            setTimeout(() => {
+                showToast('Report generation will be implemented soon', 'warning');
+            }, 1000);
+        }
+        
+        function exportAnalytics() {
+            showToast('Exporting analytics data...', 'info');
+            // TODO: Implement data export
+            setTimeout(() => {
+                showToast('Data export will be implemented soon', 'warning');
+            }, 1000);
+        }
+        
+        // Utility functions
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <div class="toast-content">
+                    <i class="fas fa-${type === 'error' ? 'exclamation-circle' : type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 100);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 3000);
+        }
+        
+        // Initialize charts and animations
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animate progress bars
+            const progressBars = document.querySelectorAll('.progress-bar, .bar-fill');
+            progressBars.forEach(bar => {
+                const width = bar.style.width;
+                bar.style.width = '0%';
+                setTimeout(() => {
+                    bar.style.transition = 'width 1s ease-in-out';
+                    bar.style.width = width;
+                }, 500);
+            });
+            
+            // Animate chart bars
+            const chartBars = document.querySelectorAll('.chart-bars .bar');
+            chartBars.forEach((bar, index) => {
+                const height = bar.style.height;
+                bar.style.height = '0%';
+                setTimeout(() => {
+                    bar.style.transition = 'height 0.8s ease-in-out';
+                    bar.style.height = height;
+                }, 200 * index);
+            });
+        });
+    </script>
+</body>
+</html>

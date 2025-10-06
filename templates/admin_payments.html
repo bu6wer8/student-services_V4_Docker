@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payments - Student Services Admin</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico">
+    
+    <!-- External CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- UAE Dirham Symbol -->
+    <link href="https://cdn.jsdelivr.net/npm/new-dirham-symbol@1.0.3/dist/uae-symbol.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static_2/css/admin.css">
+    <link rel="stylesheet" href="/static_2/css/components.css">
+    <link rel="stylesheet" href="/static_2/css/responsive.css">
+    <link rel="stylesheet" href="/static_2/css/admin_enhanced.css">
+</head>
+<body class="admin-body">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Student Services</span>
+            </div>
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <ul>
+                <li class="nav-item">
+                    <a href="/admin" class="nav-link">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/orders" class="nav-link">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>Orders</span>
+                        <span class="badge" id="pendingOrdersBadge">{{ pending_orders_count }}</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/customers" class="nav-link">
+                        <i class="fas fa-users"></i>
+                        <span>Customers</span>
+                    </a>
+                </li>
+                <li class="nav-item active">
+                    <a href="/admin/payments" class="nav-link">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Payments</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/analytics" class="nav-link">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Analytics</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/settings" class="nav-link">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <div class="admin-profile">
+                <div class="profile-avatar">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <div class="profile-info">
+                    <span class="profile-name">Admin</span>
+                    <span class="profile-role">Administrator</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Payments Overview</h1>
+            </div>
+            
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-icon" id="refreshBtn" title="Refresh Data">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    
+                    <div class="connection-status" id="connectionStatus">
+                        <i class="fas fa-circle"></i>
+                        <span>Connected</span>
+                    </div>
+                    
+                    <div class="dropdown">
+                        <button class="btn btn-icon dropdown-toggle" id="adminMenuToggle">
+                            <i class="fas fa-user-circle"></i>
+                        </button>
+                        <div class="dropdown-menu" id="adminMenu">
+                            <a href="#" class="dropdown-item">
+                                <i class="fas fa-user"></i> Profile
+                            </a>
+                            <a href="/admin/settings" class="dropdown-item">
+                                <i class="fas fa-cog"></i> Settings
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a href="#" class="dropdown-item text-danger" id="logoutBtn">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <div class="section-header">
+                <h2><i class="fas fa-credit-card"></i> Payments Overview</h2>
+                <div class="section-actions">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="paymentSearch" placeholder="Search payments..." class="form-control">
+                    </div>
+                    <select id="statusFilter" class="form-select">
+                        <option value="">All Status</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="waiting">Waiting</option>
+                        <option value="failed">Failed</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="exportPayments()">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+            </div>
+
+            <!-- Payment Stats -->
+            <div class="stats-row mb-4">
+                <div class="stat-card">
+                    <div class="stat-icon bg-primary">
+                        <i class="fas fa-credit-card"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ payments|length }}</h3>
+                        <p>Total Payments</p>
+                        <span class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i> +15%
+                        </span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon bg-success">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ payments|selectattr("payment_status", "equalto", "confirmed")|list|length }}</h3>
+                        <p>Confirmed Payments</p>
+                        <span class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i> +20%
+                        </span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon bg-warning">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ payments|selectattr("payment_status", "equalto", "waiting")|list|length }}</h3>
+                        <p>Pending Payments</p>
+                        <span class="stat-change neutral">
+                            <i class="fas fa-minus"></i> 0%
+                        </span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon bg-money">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3><span class="uae-dirham">د.إ</span> {{ "%.2f"|format(payments|selectattr("payment_status", "equalto", "confirmed")|sum(attribute="total_price") or 0) }}</h3>
+                        <p>Total Revenue</p>
+                        <span class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i> +18%
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-hashtag"></i> Payment ID</th>
+                            <th><i class="fas fa-shopping-bag"></i> Order</th>
+                            <th><i class="fas fa-user"></i> Customer</th>
+                            <th><i class="fas fa-money-bill-wave"></i> Amount</th>
+                            <th><i class="fas fa-credit-card"></i> Method</th>
+                            <th><i class="fas fa-circle"></i> Status</th>
+                            <th><i class="fas fa-calendar"></i> Date</th>
+                            <th><i class="fas fa-cogs"></i> Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paymentsTableBody">
+                        {% if payments %}
+                            {% for payment in payments %}
+                            <tr>
+                                <td>
+                                    <strong>PAY-{{ payment.id }}</strong>
+                                    <small class="text-muted d-block">Stripe Transaction</small>
+                                </td>
+                                <td>
+                                    <a href="/admin/orders?id={{ payment.id }}" class="text-primary">{{ payment.order_number or payment.id }}</a>
+                                    <small class="text-muted d-block">{{ payment.service_type or 'Unknown service' }}</small>
+                                </td>
+                                <td>
+                                    <div class="customer-info">
+                                        <div class="customer-avatar">{{ (payment.customer_name or 'U')[0:2]|upper }}</div>
+                                        <div class="customer-details">
+                                            <strong>{{ payment.customer_name or 'Unknown' }}</strong>
+                                            <small>{{ payment.customer_email or 'No email' }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <strong><span class="uae-dirham">د.إ</span> {{ "%.2f"|format(payment.total_price or 0) }}</strong>
+                                    <small class="text-muted d-block">{{ payment.currency or 'AED' }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge badge-info">
+                                        <i class="fab fa-stripe"></i> Stripe
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if payment.payment_status == 'confirmed' %}
+                                        <span class="badge badge-success">Confirmed</span>
+                                    {% elif payment.payment_status == 'waiting' %}
+                                        <span class="badge badge-warning">Waiting</span>
+                                    {% elif payment.payment_status == 'failed' %}
+                                        <span class="badge badge-danger">Failed</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">Unknown</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ payment.created_at.strftime('%Y-%m-%d %H:%M') if payment.created_at else 'N/A' }}</strong>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary" onclick="viewPayment({{ payment.id }})">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                    {% if payment.payment_status == 'confirmed' %}
+                                        <button class="btn btn-sm btn-secondary" onclick="generateReceipt({{ payment.id }})">
+                                            <i class="fas fa-receipt"></i> Receipt
+                                        </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted">No payments found</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if not payments %}
+            <div class="empty-state">
+                <i class="fas fa-credit-card fa-3x text-muted"></i>
+                <h3>No Payments Found</h3>
+                <p>Payment transactions will appear here once customers start making payments.</p>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <!-- Payment Details Modal -->
+    <div id="paymentModal" class="modal">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">Payment Details</h3>
+                    <button class="modal-close" onclick="closeModal('paymentModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body" id="paymentModalContent">
+                    <!-- Payment details will be loaded here -->
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal('paymentModal')">Close</button>
+                    <button class="btn btn-primary" onclick="refundPayment()">
+                        <i class="fas fa-undo"></i> Process Refund
+                    </button>
+                    <button class="btn btn-success" onclick="generateReceipt()">
+                        <i class="fas fa-receipt"></i> Generate Receipt
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <script>
+        // Basic functionality
+        document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        });
+        
+        document.getElementById('mobileMenuToggle')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('mobile-open');
+        });
+        
+        document.getElementById('adminMenuToggle')?.addEventListener('click', function() {
+            document.getElementById('adminMenu').classList.toggle('show');
+        });
+        
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown')) {
+                document.getElementById('adminMenu')?.classList.remove('show');
+            }
+        });
+        
+        document.getElementById('refreshBtn')?.addEventListener('click', function() {
+            location.reload();
+        });
+        
+        // Search functionality
+        document.getElementById('paymentSearch')?.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const rows = document.querySelectorAll('#paymentsTableBody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            });
+        });
+        
+        // Status filter
+        document.getElementById('statusFilter')?.addEventListener('change', function() {
+            const filterValue = this.value.toLowerCase();
+            const rows = document.querySelectorAll('#paymentsTableBody tr');
+            
+            rows.forEach(row => {
+                if (!filterValue) {
+                    row.style.display = '';
+                } else {
+                    const statusCell = row.querySelector('td:nth-child(6)');
+                    const statusText = statusCell ? statusCell.textContent.toLowerCase() : '';
+                    row.style.display = statusText.includes(filterValue) ? '' : 'none';
+                }
+            });
+        });
+        
+        // Payment management functions
+        function viewPayment(paymentId) {
+            // Fetch payment details and show modal
+            fetch(`/api/orders/${paymentId}`)
+                .then(response => response.json())
+                .then(payment => {
+                    document.getElementById('paymentModalContent').innerHTML = `
+                        <div class="payment-details">
+                            <div class="detail-row">
+                                <strong>Payment ID:</strong> PAY-${payment.id}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Order:</strong> ${payment.order_number || payment.id}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Customer:</strong> ${payment.customer_name || 'Unknown'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Email:</strong> ${payment.customer_email || 'No email'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Amount:</strong> <span class="uae-dirham">د.إ</span> ${parseFloat(payment.total_price || 0).toFixed(2)}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Currency:</strong> ${payment.currency || 'AED'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Payment Method:</strong> Stripe
+                            </div>
+                            <div class="detail-row">
+                                <strong>Status:</strong> ${payment.payment_status || 'Unknown'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Date:</strong> ${payment.created_at ? new Date(payment.created_at).toLocaleString() : 'N/A'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Service:</strong> ${payment.service_type || 'Unknown'}
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('paymentModal').style.display = 'flex';
+                })
+                .catch(error => {
+                    console.error('Error fetching payment:', error);
+                    alert('Failed to load payment details');
+                });
+        }
+        
+        function generateReceipt(paymentId) {
+            alert(`Receipt generation for payment ${paymentId || 'current'} will be implemented soon`);
+        }
+        
+        function refundPayment() {
+            if (confirm('Are you sure you want to process a refund for this payment?')) {
+                alert('Refund functionality will be implemented soon');
+            }
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        
+        function exportPayments() {
+            alert('Export functionality will be implemented soon');
+        }
+        
+        // Close modal when clicking outside
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal')) {
+                e.target.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

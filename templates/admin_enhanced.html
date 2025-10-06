@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Services - Admin Dashboard</title>
+    
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="/static_2/css/admin.css">
+    <link rel="stylesheet" href="/static_2/css/components.css">
+    <link rel="stylesheet" href="/static_2/css/responsive.css">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- UAE Dirham Symbol Font -->
+    <style>
+        @font-face {
+            font-family: 'UAESymbol';
+            src: url('data:font/woff2;base64,') format('woff2');
+        }
+        .dirham-symbol {
+            font-family: 'UAESymbol', Arial, sans-serif;
+            font-weight: bold;
+        }
+        .dirham-symbol::before {
+            content: 'ê';
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Loading...</p>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Sidebar -->
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Student Services</span>
+            </div>
+            <button id="sidebarToggle" class="sidebar-toggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-item active">
+                <a href="#" class="nav-link" data-section="dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                    <span class="badge">2</span>
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="#" class="nav-link" data-section="orders">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>Orders</span>
+                    <span id="pendingOrdersBadge" class="badge">0</span>
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="#" class="nav-link" data-section="customers">
+                    <i class="fas fa-users"></i>
+                    <span>Customers</span>
+                    <span class="badge">4</span>
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="#" class="nav-link" data-section="payments">
+                    <i class="fas fa-credit-card"></i>
+                    <span>Payments</span>
+                    <span class="badge">5</span>
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="#" class="nav-link" data-section="analytics">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Analytics</span>
+                    <span class="badge">6</span>
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="#" class="nav-link" data-section="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                    <span class="badge">7</span>
+                </a>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="admin-profile">
+                <div class="admin-avatar">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <div class="admin-info">
+                    <div class="admin-name">Admin</div>
+                    <div class="admin-role">Administrator</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <button id="mobileMenuToggle" class="mobile-menu-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 id="pageTitle">Dashboard</h1>
+            </div>
+            
+            <div class="header-right">
+                <button id="refreshBtn" class="btn btn-outline-primary" title="Refresh Data">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                
+                <div class="connection-status">
+                    <i class="fas fa-circle text-success"></i>
+                    <span>Connected</span>
+                </div>
+                
+                <div class="header-actions">
+                    <button class="btn btn-primary">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge">3</span>
+                    </button>
+                    
+                    <button class="btn btn-success">
+                        <i class="fas fa-download"></i>
+                        <span class="badge">9</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Section -->
+        <div id="dashboardSection" class="content-section active">
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-number" id="totalOrders">0</div>
+                        <div class="stat-label">Total Orders</div>
+                        <div class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i>
+                            <span>+12%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-number" id="pendingOrders">0</div>
+                        <div class="stat-label">Pending Orders</div>
+                        <div class="stat-change neutral">
+                            <span>—0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-spinner"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-number" id="inProgressOrders">0</div>
+                        <div class="stat-label">In Progress</div>
+                        <div class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i>
+                            <span>+8%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-number" id="completedOrders">0</div>
+                        <div class="stat-label">Completed</div>
+                        <div class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i>
+                            <span>+15%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-number" id="totalRevenue">ê 0.00</div>
+                        <div class="stat-label">Total Revenue</div>
+                        <div class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i>
+                            <span>+23%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <h3>Quick Actions</h3>
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="showSection('orders')">
+                        <i class="fas fa-eye"></i>
+                        View Orders
+                        <span class="badge">10</span>
+                    </button>
+                    
+                    <button class="btn btn-success" onclick="exportData()">
+                        <i class="fas fa-download"></i>
+                        Export Data
+                        <span class="badge">11</span>
+                    </button>
+                    
+                    <button class="btn btn-info" onclick="showSection('analytics')">
+                        <i class="fas fa-chart-line"></i>
+                        View Analytics
+                        <span class="badge">12</span>
+                    </button>
+                    
+                    <button class="btn btn-warning" onclick="showResetModal()">
+                        <i class="fas fa-database"></i>
+                        Database Tools
+                        <span class="badge">13</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="recent-activity">
+                <h3>Recent Activity</h3>
+                <div id="recentActivity" class="activity-list">
+                    <!-- Activity items will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Orders Section -->
+        <div id="ordersSection" class="content-section">
+            <div class="section-header">
+                <h2>Orders Management</h2>
+                <div class="section-actions">
+                    <input type="text" id="orderSearch" placeholder="Search orders..." class="form-control">
+                    <select id="statusFilter" class="form-control">
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="paid">Paid</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Order #</th>
+                            <th>Customer</th>
+                            <th>Service</th>
+                            <th>Amount</th>
+                            <th>Payment</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody">
+                        <!-- Orders will be loaded here -->
+                    </tbody>
+                </table>
+                
+                <div id="noOrders" class="no-data" style="display: none;">
+                    <i class="fas fa-shopping-cart"></i>
+                    <h4>No Orders Found</h4>
+                    <p>There are no orders to display.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customers Section -->
+        <div id="customersSection" class="content-section">
+            <div class="section-header">
+                <h2>Customers Management</h2>
+                <div class="section-actions">
+                    <input type="text" id="customerSearch" placeholder="Search customers..." class="form-control">
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Customer</th>
+                            <th>Contact</th>
+                            <th>Country</th>
+                            <th>Orders</th>
+                            <th>Total Spent</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customersTableBody">
+                        <!-- Customers will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Payments Section -->
+        <div id="paymentsSection" class="content-section">
+            <div class="section-header">
+                <h2>Payments Management</h2>
+                <div class="section-actions">
+                    <select id="paymentStatusFilter" class="form-control">
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="failed">Failed</option>
+                        <option value="refunded">Refunded</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Payment ID</th>
+                            <th>Order</th>
+                            <th>Amount</th>
+                            <th>Method</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paymentsTableBody">
+                        <!-- Payments will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Analytics Section -->
+        <div id="analyticsSection" class="content-section">
+            <div class="section-header">
+                <h2>Analytics & Reports</h2>
+            </div>
+
+            <div class="analytics-grid">
+                <div class="chart-container">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="ordersChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Section -->
+        <div id="settingsSection" class="content-section">
+            <div class="section-header">
+                <h2>System Settings</h2>
+            </div>
+
+            <div id="settingsForm" class="settings-form">
+                <!-- Settings form will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    
+    <!-- Order Details Modal -->
+    <div id="orderModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Order Details</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div id="orderModalContent" class="modal-body">
+                <!-- Order details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Work Modal -->
+    <div id="uploadModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Upload Work Files</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="workFiles">Select Files</label>
+                        <input type="file" id="workFiles" name="files" multiple class="form-control">
+                        <small class="form-text text-muted">You can select multiple files</small>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Upload Files</button>
+                        <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Customer Modal -->
+    <div id="contactModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Contact Customer</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="contactForm">
+                    <div class="form-group">
+                        <label for="messageType">Message Type</label>
+                        <select id="messageType" name="message_type" class="form-control">
+                            <option value="update">Order Update</option>
+                            <option value="question">Question</option>
+                            <option value="delivery">Delivery Notification</option>
+                            <option value="general">General Message</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="customerMessage">Message</label>
+                        <textarea id="customerMessage" name="message" class="form-control" rows="4" placeholder="Write your message here..."></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Send Message</button>
+                        <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Update Modal -->
+    <div id="statusModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Update Order Status</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="statusForm">
+                    <div class="form-group">
+                        <label for="orderStatus">Order Status</label>
+                        <select id="orderStatus" name="order_status" class="form-control">
+                            <option value="pending">Pending</option>
+                            <option value="paid">Paid</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="paymentStatus">Payment Status</label>
+                        <select id="paymentStatus" name="payment_status" class="form-control">
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="failed">Failed</option>
+                            <option value="refunded">Refunded</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="adminNotes">Admin Notes (Optional)</label>
+                        <textarea id="adminNotes" name="admin_notes" class="form-control" rows="3" placeholder="Add any notes..."></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Update Status</button>
+                        <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset Database Modal -->
+    <div id="resetModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Reset Database</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Warning!</strong> This action will permanently delete all data.
+                </div>
+                <form id="resetForm">
+                    <div class="form-group">
+                        <label for="resetConfirmation">Type "RESET_ALL_DATA" to confirm:</label>
+                        <input type="text" id="resetConfirmation" class="form-control" placeholder="RESET_ALL_DATA">
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-danger" onclick="resetDatabase()">Reset Database</button>
+                        <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.0/axios.min.js"></script>
+    <script src="/static_2/js/api.js"></script>
+    <script src="/static_2/js/components.js"></script>
+    <script src="/static_2/js/admin_enhanced.js"></script>
+</body>
+</html>

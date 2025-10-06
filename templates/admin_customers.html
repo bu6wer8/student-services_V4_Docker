@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customers - Student Services Admin</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico">
+    
+    <!-- External CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- UAE Dirham Symbol -->
+    <link href="https://cdn.jsdelivr.net/npm/new-dirham-symbol@1.0.3/dist/uae-symbol.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static_2/css/admin.css">
+    <link rel="stylesheet" href="/static_2/css/components.css">
+    <link rel="stylesheet" href="/static_2/css/responsive.css">
+    <link rel="stylesheet" href="/static_2/css/admin_enhanced.css">
+</head>
+<body class="admin-body">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Student Services</span>
+            </div>
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <ul>
+                <li class="nav-item">
+                    <a href="/admin" class="nav-link">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/orders" class="nav-link">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>Orders</span>
+                        <span class="badge" id="pendingOrdersBadge">{{ pending_orders_count }}</span>
+                    </a>
+                </li>
+                <li class="nav-item active">
+                    <a href="/admin/customers" class="nav-link">
+                        <i class="fas fa-users"></i>
+                        <span>Customers</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/payments" class="nav-link">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Payments</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/analytics" class="nav-link">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Analytics</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/settings" class="nav-link">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <div class="admin-profile">
+                <div class="profile-avatar">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <div class="profile-info">
+                    <span class="profile-name">Admin</span>
+                    <span class="profile-role">Administrator</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Customers Management</h1>
+            </div>
+            
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-icon" id="refreshBtn" title="Refresh Data">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    
+                    <div class="connection-status" id="connectionStatus">
+                        <i class="fas fa-circle"></i>
+                        <span>Connected</span>
+                    </div>
+                    
+                    <div class="dropdown">
+                        <button class="btn btn-icon dropdown-toggle" id="adminMenuToggle">
+                            <i class="fas fa-user-circle"></i>
+                        </button>
+                        <div class="dropdown-menu" id="adminMenu">
+                            <a href="#" class="dropdown-item">
+                                <i class="fas fa-user"></i> Profile
+                            </a>
+                            <a href="/admin/settings" class="dropdown-item">
+                                <i class="fas fa-cog"></i> Settings
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a href="#" class="dropdown-item text-danger" id="logoutBtn">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <div class="section-header">
+                <h2><i class="fas fa-users"></i> Customers Management</h2>
+                <div class="section-actions">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="customerSearch" placeholder="Search customers..." class="form-control">
+                    </div>
+                    <button class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Customer
+                    </button>
+                    <button class="btn btn-success" onclick="exportCustomers()">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+            </div>
+            
+            <div class="stats-row mb-4">
+                <div class="stat-card">
+                    <div class="stat-icon bg-primary">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ customers|length }}</h3>
+                        <p>Total Customers</p>
+                        <span class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i> +18%
+                        </span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon bg-success">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ customers|selectattr("is_active", "equalto", true)|list|length if customers else 0 }}</h3>
+                        <p>Active Customers</p>
+                        <span class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i> +12%
+                        </span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon bg-info">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ "%.1f"|format((customers|sum(attribute='total_orders') / customers|length) if customers else 0) }}</h3>
+                        <p>Avg Orders/Customer</p>
+                        <span class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i> +8%
+                        </span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon bg-warning">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3><span class="uae-dirham">د.إ</span> {{ "%.2f"|format((customers|sum(attribute='total_spent') / customers|length) if customers else 0) }}</h3>
+                        <p>Avg Spent/Customer</p>
+                        <span class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i> +15%
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-user"></i> Customer</th>
+                            <th><i class="fas fa-envelope"></i> Email</th>
+                            <th><i class="fas fa-phone"></i> Phone</th>
+                            <th><i class="fas fa-shopping-bag"></i> Orders</th>
+                            <th><i class="fas fa-money-bill-wave"></i> Total Spent</th>
+                            <th><i class="fas fa-calendar"></i> Joined</th>
+                            <th><i class="fas fa-circle"></i> Status</th>
+                            <th><i class="fas fa-cogs"></i> Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customersTableBody">
+                        {% if customers %}
+                            {% for customer in customers %}
+                            <tr>
+                                <td>
+                                    <div class="customer-info">
+                                        <div class="customer-avatar">{{ (customer.full_name or customer.first_name or 'U')[0:2]|upper }}</div>
+                                        <div class="customer-details">
+                                            <strong>{{ customer.full_name or (customer.first_name + ' ' + customer.last_name) or 'Unknown' }}</strong>
+                                            <small>Customer since {{ customer.created_at.strftime('%b %Y') if customer.created_at else 'Unknown' }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ customer.email or 'No email' }}</td>
+                                <td>{{ customer.phone or 'No phone' }}</td>
+                                <td><span class="badge badge-info">{{ customer.total_orders or 0 }} orders</span></td>
+                                <td><strong><span class="uae-dirham">د.إ</span> {{ "%.2f"|format(customer.total_spent or 0) }}</strong></td>
+                                <td>{{ customer.created_at.strftime('%Y-%m-%d') if customer.created_at else 'N/A' }}</td>
+                                <td>
+                                    {% if customer.is_active %}
+                                        <span class="badge badge-success">Active</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary" onclick="viewCustomer({{ customer.id }})">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                    <button class="btn btn-sm btn-success" onclick="contactCustomer({{ customer.id }})">
+                                        <i class="fas fa-comment"></i> Contact
+                                    </button>
+                                    <button class="btn btn-sm btn-info" onclick="viewCustomerOrders({{ customer.id }})">
+                                        <i class="fas fa-shopping-cart"></i> Orders
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted">No customers found</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if not customers %}
+            <div class="empty-state">
+                <i class="fas fa-users fa-3x text-muted"></i>
+                <h3>No Customers Found</h3>
+                <p>Customers will appear here once they start placing orders.</p>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <!-- Customer Details Modal -->
+    <div id="customerModal" class="modal">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">Customer Details</h3>
+                    <button class="modal-close" onclick="closeModal('customerModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body" id="customerModalContent">
+                    <!-- Customer details will be loaded here -->
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal('customerModal')">Close</button>
+                    <button class="btn btn-primary" onclick="editCustomer()">
+                        <i class="fas fa-edit"></i> Edit Customer
+                    </button>
+                    <button class="btn btn-success" onclick="contactCustomerFromModal()">
+                        <i class="fas fa-envelope"></i> Send Message
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <script>
+        // Basic functionality
+        document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        });
+        
+        document.getElementById('mobileMenuToggle')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('mobile-open');
+        });
+        
+        document.getElementById('adminMenuToggle')?.addEventListener('click', function() {
+            document.getElementById('adminMenu').classList.toggle('show');
+        });
+        
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown')) {
+                document.getElementById('adminMenu')?.classList.remove('show');
+            }
+        });
+        
+        document.getElementById('refreshBtn')?.addEventListener('click', function() {
+            location.reload();
+        });
+        
+        // Search functionality
+        document.getElementById('customerSearch')?.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const rows = document.querySelectorAll('#customersTableBody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            });
+        });
+        
+        // Customer management functions
+        function viewCustomer(customerId) {
+            // Fetch customer details and show modal
+            fetch(`/api/customers/${customerId}`)
+                .then(response => response.json())
+                .then(customer => {
+                    document.getElementById('customerModalContent').innerHTML = `
+                        <div class="customer-details">
+                            <div class="detail-row">
+                                <strong>Name:</strong> ${customer.full_name || (customer.first_name + ' ' + customer.last_name) || 'Unknown'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Email:</strong> ${customer.email || 'No email'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Phone:</strong> ${customer.phone || 'No phone'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Total Orders:</strong> ${customer.total_orders || 0}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Total Spent:</strong> <span class="uae-dirham">د.إ</span> ${parseFloat(customer.total_spent || 0).toFixed(2)}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Status:</strong> ${customer.is_active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-secondary">Inactive</span>'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Joined:</strong> ${customer.created_at ? new Date(customer.created_at).toLocaleDateString() : 'N/A'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Last Activity:</strong> ${customer.last_activity ? new Date(customer.last_activity).toLocaleDateString() : 'N/A'}
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('customerModal').style.display = 'flex';
+                })
+                .catch(error => {
+                    console.error('Error fetching customer:', error);
+                    alert('Failed to load customer details');
+                });
+        }
+        
+        function contactCustomer(customerId) {
+            alert(`Contact functionality for customer ${customerId} will be implemented soon`);
+        }
+        
+        function viewCustomerOrders(customerId) {
+            window.location.href = `/admin/orders?customer=${customerId}`;
+        }
+        
+        function editCustomer() {
+            alert('Edit customer functionality will be implemented soon');
+        }
+        
+        function contactCustomerFromModal() {
+            alert('Contact customer functionality will be implemented soon');
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        
+        function exportCustomers() {
+            alert('Export functionality will be implemented soon');
+        }
+        
+        // Close modal when clicking outside
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal')) {
+                e.target.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

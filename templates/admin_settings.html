@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Student Services Admin</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico">
+    
+    <!-- External CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- UAE Dirham Symbol -->
+    <link href="https://cdn.jsdelivr.net/npm/new-dirham-symbol@1.0.3/dist/uae-dirham-symbol.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static_2/css/admin.css">
+    <link rel="stylesheet" href="/static_2/css/components.css">
+    <link rel="stylesheet" href="/static_2/css/responsive.css">
+    <link rel="stylesheet" href="/static_2/css/admin_enhanced.css">
+</head>
+<body class="admin-body">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Student Services</span>
+            </div>
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <ul>
+                <li class="nav-item">
+                    <a href="/admin" class="nav-link">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/orders" class="nav-link">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>Orders</span>
+                        <span class="badge" id="pendingOrdersBadge">{{ pending_orders_count }}</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/customers" class="nav-link">
+                        <i class="fas fa-users"></i>
+                        <span>Customers</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/payments" class="nav-link">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Payments</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/analytics" class="nav-link">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Analytics</span>
+                    </a>
+                </li>
+                <li class="nav-item active">
+                    <a href="/admin/settings" class="nav-link">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <div class="admin-profile">
+                <div class="profile-avatar">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <div class="profile-info">
+                    <span class="profile-name">Admin</span>
+                    <span class="profile-role">Administrator</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">System Settings</h1>
+            </div>
+            
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-icon" id="refreshBtn" title="Refresh Data">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    
+                    <div class="connection-status" id="connectionStatus">
+                        <i class="fas fa-circle"></i>
+                        <span>Connected</span>
+                    </div>
+                    
+                    <div class="dropdown">
+                        <button class="btn btn-icon dropdown-toggle" id="adminMenuToggle">
+                            <i class="fas fa-user-circle"></i>
+                        </button>
+                        <div class="dropdown-menu" id="adminMenu">
+                            <a href="#" class="dropdown-item">
+                                <i class="fas fa-user"></i> Profile
+                            </a>
+                            <a href="/admin/settings" class="dropdown-item">
+                                <i class="fas fa-cog"></i> Settings
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a href="#" class="dropdown-item text-danger" id="logoutBtn">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <div class="section-header">
+                <h2><i class="fas fa-cog"></i> System Settings</h2>
+            </div>
+            
+            <div class="settings-container">
+                <!-- System Information -->
+                <div class="settings-section">
+                    <h3><i class="fas fa-info-circle"></i> System Information</h3>
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label>Platform Version</label>
+                            <div class="setting-value">v1.0.0</div>
+                        </div>
+                        <div class="setting-item">
+                            <label>Database Status</label>
+                            <div class="setting-value">
+                                <span class="badge badge-success">
+                                    <i class="fas fa-check-circle"></i> Connected
+                                </span>
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <label>Bot Status</label>
+                            <div class="setting-value">
+                                <span class="badge badge-warning">
+                                    <i class="fas fa-exclamation-triangle"></i> Needs Configuration
+                                </span>
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <label>Payment Gateway</label>
+                            <div class="setting-value">
+                                <span class="badge badge-info">
+                                    <i class="fab fa-stripe"></i> Stripe
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bot Configuration -->
+                <div class="settings-section">
+                    <h3><i class="fas fa-robot"></i> Telegram Bot Configuration</h3>
+                    <form id="botConfigForm" class="settings-form">
+                        <div class="form-group">
+                            <label for="botToken">Bot Token</label>
+                            <input type="password" id="botToken" name="bot_token" class="form-control" 
+                                   placeholder="Enter your Telegram bot token" value="{{ bot_token or '' }}">
+                            <small class="form-text">Get your bot token from @BotFather on Telegram</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="webhookUrl">Webhook URL</label>
+                            <input type="url" id="webhookUrl" name="webhook_url" class="form-control" 
+                                   placeholder="https://yourdomain.com/webhook" value="{{ webhook_url or '' }}">
+                            <small class="form-text">URL where Telegram will send updates</small>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Bot Configuration
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="testBotConnection()">
+                                <i class="fas fa-plug"></i> Test Connection
+                            </button>
+                            <button type="button" class="btn btn-info" onclick="restartBot()">
+                                <i class="fas fa-redo"></i> Restart Bot
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Payment Settings -->
+                <div class="settings-section">
+                    <h3><i class="fas fa-credit-card"></i> Payment Settings</h3>
+                    <form id="paymentConfigForm" class="settings-form">
+                        <div class="form-group">
+                            <label for="stripePublicKey">Stripe Public Key</label>
+                            <input type="text" id="stripePublicKey" name="stripe_public_key" class="form-control" 
+                                   placeholder="pk_..." value="{{ stripe_public_key or '' }}">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="stripeSecretKey">Stripe Secret Key</label>
+                            <input type="password" id="stripeSecretKey" name="stripe_secret_key" class="form-control" 
+                                   placeholder="sk_..." value="{{ stripe_secret_key or '' }}">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="currency">Default Currency</label>
+                            <select id="currency" name="currency" class="form-control">
+                                <option value="AED" {{ 'selected' if currency == 'AED' else '' }}>AED - UAE Dirham</option>
+                                <option value="USD" {{ 'selected' if currency == 'USD' else '' }}>USD - US Dollar</option>
+                                <option value="EUR" {{ 'selected' if currency == 'EUR' else '' }}>EUR - Euro</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Payment Settings
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="testStripeConnection()">
+                                <i class="fas fa-plug"></i> Test Stripe Connection
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Email Settings -->
+                <div class="settings-section">
+                    <h3><i class="fas fa-envelope"></i> Email Settings</h3>
+                    <form id="emailConfigForm" class="settings-form">
+                        <div class="form-group">
+                            <label for="smtpHost">SMTP Host</label>
+                            <input type="text" id="smtpHost" name="smtp_host" class="form-control" 
+                                   placeholder="smtp.gmail.com" value="{{ smtp_host or '' }}">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="smtpPort">SMTP Port</label>
+                            <input type="number" id="smtpPort" name="smtp_port" class="form-control" 
+                                   placeholder="587" value="{{ smtp_port or '' }}">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="smtpUser">SMTP Username</label>
+                            <input type="email" id="smtpUser" name="smtp_user" class="form-control" 
+                                   placeholder="your-email@gmail.com" value="{{ smtp_user or '' }}">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="smtpPassword">SMTP Password</label>
+                            <input type="password" id="smtpPassword" name="smtp_password" class="form-control" 
+                                   placeholder="Your email password or app password" value="{{ smtp_password or '' }}">
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Email Settings
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="testEmailConnection()">
+                                <i class="fas fa-paper-plane"></i> Send Test Email
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Database Management -->
+                <div class="settings-section">
+                    <h3><i class="fas fa-database"></i> Database Management</h3>
+                    <div class="database-tools">
+                        <div class="tool-item">
+                            <h4>Backup Database</h4>
+                            <p>Create a backup of all your data</p>
+                            <button class="btn btn-info" onclick="backupDatabase()">
+                                <i class="fas fa-download"></i> Create Backup
+                            </button>
+                        </div>
+                        
+                        <div class="tool-item">
+                            <h4>Import Data</h4>
+                            <p>Import data from a backup file</p>
+                            <input type="file" id="importFile" accept=".sql,.json" style="display: none;">
+                            <button class="btn btn-success" onclick="document.getElementById('importFile').click()">
+                                <i class="fas fa-upload"></i> Import Data
+                            </button>
+                        </div>
+                        
+                        <div class="tool-item danger-zone">
+                            <h4>⚠️ DANGER ZONE</h4>
+                            <p><strong>Warning!</strong> This will permanently delete ALL data including orders, users, and payments. This action cannot be undone!</p>
+                            
+                            <div class="form-group">
+                                <label>Type "RESET_ALL_DATA" to confirm:</label>
+                                <input type="text" id="resetConfirmation" class="form-control" placeholder="RESET_ALL_DATA">
+                            </div>
+                            
+                            <button class="btn btn-danger" onclick="resetDatabase()">
+                                <i class="fas fa-exclamation-triangle"></i> Reset Database
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Logs -->
+                <div class="settings-section">
+                    <h3><i class="fas fa-file-alt"></i> System Logs</h3>
+                    <div class="logs-container">
+                        <div class="log-actions">
+                            <button class="btn btn-primary" onclick="viewLogs('app')">
+                                <i class="fas fa-eye"></i> View App Logs
+                            </button>
+                            <button class="btn btn-info" onclick="viewLogs('bot')">
+                                <i class="fas fa-robot"></i> View Bot Logs
+                            </button>
+                            <button class="btn btn-warning" onclick="clearLogs()">
+                                <i class="fas fa-trash"></i> Clear Logs
+                            </button>
+                            <button class="btn btn-success" onclick="downloadLogs()">
+                                <i class="fas fa-download"></i> Download Logs
+                            </button>
+                        </div>
+                        
+                        <div class="log-viewer" id="logViewer">
+                            <pre id="logContent">Click "View Logs" to see system logs...</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <script>
+        // Basic functionality
+        document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        });
+        
+        document.getElementById('mobileMenuToggle')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('mobile-open');
+        });
+        
+        document.getElementById('adminMenuToggle')?.addEventListener('click', function() {
+            document.getElementById('adminMenu').classList.toggle('show');
+        });
+        
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown')) {
+                document.getElementById('adminMenu')?.classList.remove('show');
+            }
+        });
+        
+        document.getElementById('refreshBtn')?.addEventListener('click', function() {
+            location.reload();
+        });
+        
+        // Form submissions
+        document.getElementById('botConfigForm')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveBotConfig();
+        });
+        
+        document.getElementById('paymentConfigForm')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            savePaymentConfig();
+        });
+        
+        document.getElementById('emailConfigForm')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveEmailConfig();
+        });
+        
+        // Configuration functions
+        async function saveBotConfig() {
+            const formData = new FormData(document.getElementById('botConfigForm'));
+            try {
+                const response = await fetch('/api/admin/config/bot', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Bot configuration saved successfully', 'success');
+                } else {
+                    showToast('Failed to save bot configuration: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error saving bot configuration', 'error');
+            }
+        }
+        
+        async function savePaymentConfig() {
+            const formData = new FormData(document.getElementById('paymentConfigForm'));
+            try {
+                const response = await fetch('/api/admin/config/payment', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Payment configuration saved successfully', 'success');
+                } else {
+                    showToast('Failed to save payment configuration: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error saving payment configuration', 'error');
+            }
+        }
+        
+        async function saveEmailConfig() {
+            const formData = new FormData(document.getElementById('emailConfigForm'));
+            try {
+                const response = await fetch('/api/admin/config/email', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Email configuration saved successfully', 'success');
+                } else {
+                    showToast('Failed to save email configuration: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error saving email configuration', 'error');
+            }
+        }
+        
+        // Test functions
+        async function testBotConnection() {
+            try {
+                const response = await fetch('/api/admin/test/bot');
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Bot connection successful!', 'success');
+                } else {
+                    showToast('Bot connection failed: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error testing bot connection', 'error');
+            }
+        }
+        
+        async function testStripeConnection() {
+            try {
+                const response = await fetch('/api/admin/test/stripe');
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Stripe connection successful!', 'success');
+                } else {
+                    showToast('Stripe connection failed: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error testing Stripe connection', 'error');
+            }
+        }
+        
+        async function testEmailConnection() {
+            try {
+                const response = await fetch('/api/admin/test/email');
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Test email sent successfully!', 'success');
+                } else {
+                    showToast('Email test failed: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error testing email connection', 'error');
+            }
+        }
+        
+        // Database functions
+        async function backupDatabase() {
+            try {
+                const response = await fetch('/api/admin/database/backup', { method: 'POST' });
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `backup_${new Date().toISOString().split('T')[0]}.sql`;
+                a.click();
+                showToast('Database backup created successfully', 'success');
+            } catch (error) {
+                showToast('Error creating database backup', 'error');
+            }
+        }
+        
+        async function resetDatabase() {
+            const confirmation = document.getElementById('resetConfirmation').value;
+            
+            if (confirmation !== 'RESET_ALL_DATA') {
+                showToast('Please type "RESET_ALL_DATA" to confirm', 'error');
+                return;
+            }
+            
+            if (!confirm('Are you absolutely sure? This will delete ALL data permanently!')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/database/reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ confirmation: confirmation })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Database reset successfully', 'success');
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    showToast('Failed to reset database: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error resetting database', 'error');
+            }
+        }
+        
+        // Bot management
+        async function restartBot() {
+            try {
+                const response = await fetch('/api/admin/bot/restart', { method: 'POST' });
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Bot restarted successfully', 'success');
+                } else {
+                    showToast('Failed to restart bot: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error restarting bot', 'error');
+            }
+        }
+        
+        // Log functions
+        async function viewLogs(type) {
+            try {
+                const response = await fetch(`/api/admin/logs/${type}`);
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('logContent').textContent = result.logs;
+                } else {
+                    document.getElementById('logContent').textContent = 'Failed to load logs: ' + result.error;
+                }
+            } catch (error) {
+                document.getElementById('logContent').textContent = 'Error loading logs';
+            }
+        }
+        
+        async function clearLogs() {
+            if (!confirm('Are you sure you want to clear all logs?')) return;
+            
+            try {
+                const response = await fetch('/api/admin/logs/clear', { method: 'POST' });
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Logs cleared successfully', 'success');
+                    document.getElementById('logContent').textContent = 'Logs cleared...';
+                } else {
+                    showToast('Failed to clear logs: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error clearing logs', 'error');
+            }
+        }
+        
+        async function downloadLogs() {
+            try {
+                const response = await fetch('/api/admin/logs/download');
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `logs_${new Date().toISOString().split('T')[0]}.txt`;
+                a.click();
+                showToast('Logs downloaded successfully', 'success');
+            } catch (error) {
+                showToast('Error downloading logs', 'error');
+            }
+        }
+        
+        // Utility functions
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <div class="toast-content">
+                    <i class="fas fa-${type === 'error' ? 'exclamation-circle' : type === 'success' ? 'check-circle' : 'info-circle'}"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 100);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 3000);
+        }
+        
+        // File import handling
+        document.getElementById('importFile')?.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if (confirm(`Are you sure you want to import data from ${file.name}? This may overwrite existing data.`)) {
+                    importData(file);
+                }
+            }
+        });
+        
+        async function importData(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch('/api/admin/database/import', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Data imported successfully', 'success');
+                } else {
+                    showToast('Failed to import data: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error importing data', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Services - Admin Dashboard</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico">
+    
+    <!-- External CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- UAE Dirham Symbol -->
+    <link href="https://cdn.jsdelivr.net/npm/new-dirham-symbol@1.0.3/dist/uae-symbol.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static_2/css/admin.css">
+    <link rel="stylesheet" href="/static_2/css/components.css">
+    <link rel="stylesheet" href="/static_2/css/responsive.css">
+    <link rel="stylesheet" href="/static_2/css/admin_enhanced.css">
+</head>
+<body class="admin-body">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Student Services</span>
+            </div>
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <ul>
+                <li class="nav-item active">
+                    <a href="#dashboard" class="nav-link" data-section="dashboard">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#orders" class="nav-link" data-section="orders">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>Orders</span>
+                        <span class="badge" id="pendingOrdersBadge">0</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#customers" class="nav-link" data-section="customers">
+                        <i class="fas fa-users"></i>
+                        <span>Customers</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#payments" class="nav-link" data-section="payments">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Payments</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#analytics" class="nav-link" data-section="analytics">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Analytics</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#settings" class="nav-link" data-section="settings">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <div class="admin-profile">
+                <div class="profile-avatar">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <div class="profile-info">
+                    <span class="profile-name">Admin</span>
+                    <span class="profile-role">Administrator</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title" id="pageTitle">Dashboard</h1>
+            </div>
+            
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-icon" id="refreshBtn" title="Refresh Data">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    
+                    <div class="connection-status" id="connectionStatus">
+                        <i class="fas fa-circle"></i>
+                        <span>Connected</span>
+                    </div>
+                    
+                    <div class="dropdown">
+                        <button class="btn btn-icon dropdown-toggle" id="adminMenuToggle">
+                            <i class="fas fa-user-circle"></i>
+                        </button>
+                        <div class="dropdown-menu" id="adminMenu">
+                            <a href="#" class="dropdown-item">
+                                <i class="fas fa-user"></i> Profile
+                            </a>
+                            <a href="#" class="dropdown-item">
+                                <i class="fas fa-cog"></i> Settings
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a href="#" class="dropdown-item text-danger" id="logoutBtn">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <!-- Dashboard Section -->
+            <section id="dashboardSection" class="content-section active">
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-primary">
+                            <i class="fas fa-shopping-cart"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="totalOrders">0</h3>
+                            <p>Total Orders</p>
+                            <span class="stat-change positive">
+                                <i class="fas fa-arrow-up"></i> +12%
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon bg-warning">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="pendingOrders">0</h3>
+                            <p>Pending Orders</p>
+                            <span class="stat-change neutral">
+                                <i class="fas fa-minus"></i> 0%
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon bg-info">
+                            <i class="fas fa-spinner"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="inProgressOrders">0</h3>
+                            <p>In Progress</p>
+                            <span class="stat-change positive">
+                                <i class="fas fa-arrow-up"></i> +8%
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon bg-success">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="completedOrders">0</h3>
+                            <p>Completed</p>
+                            <span class="stat-change positive">
+                                <i class="fas fa-arrow-up"></i> +15%
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon bg-money">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="totalRevenue">$0</h3>
+                            <p>Total Revenue</p>
+                            <span class="stat-change positive">
+                                <i class="fas fa-arrow-up"></i> +23%
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <h2>Quick Actions</h2>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="showSection('orders')">
+                            <i class="fas fa-plus"></i> View Orders
+                        </button>
+                        <button class="btn btn-success" onclick="exportData()">
+                            <i class="fas fa-download"></i> Export Data
+                        </button>
+                        <button class="btn btn-info" onclick="showSection('analytics')">
+                            <i class="fas fa-chart-bar"></i> View Analytics
+                        </button>
+                        <button class="btn btn-warning" onclick="showResetModal()">
+                            <i class="fas fa-database"></i> Database Tools
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="recent-activity">
+                    <h2>Recent Activity</h2>
+                    <div class="activity-list" id="recentActivity">
+                        <!-- Activity items will be loaded here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Orders Section -->
+            <section id="ordersSection" class="content-section">
+                <div class="section-header">
+                    <h2>Orders Management</h2>
+                    <div class="section-actions">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" placeholder="Search orders..." id="orderSearch">
+                        </div>
+                        <select class="form-select" id="statusFilter">
+                            <option value="">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="paid">Paid</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="completed">Completed</option>
+                            <option value="archived">Archived</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table" id="ordersTable">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Customer</th>
+                                <th>Service</th>
+                                <th>Price</th>
+                                <th>Payment</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody">
+                            <!-- Orders will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="noOrders" class="empty-state" style="display: none;">
+                    <i class="fas fa-shopping-cart"></i>
+                    <h3>No Orders Found</h3>
+                    <p>Orders will appear here once customers start placing them.</p>
+                </div>
+            </section>
+
+            <!-- Other sections will be added here -->
+            <section id="customersSection" class="content-section">
+                <h2>Customers Management</h2>
+                <p>Customer management features coming soon...</p>
+            </section>
+
+            <section id="paymentsSection" class="content-section">
+                <h2>Payments Overview</h2>
+                <p>Payment management features coming soon...</p>
+            </section>
+
+            <section id="analyticsSection" class="content-section">
+                <h2>Analytics & Reports</h2>
+                <p>Analytics dashboard coming soon...</p>
+            </section>
+
+            <section id="settingsSection" class="content-section">
+                <h2>System Settings</h2>
+                <p>Settings panel coming soon...</p>
+            </section>
+        </div>
+    </main>
+
+    <!-- Modals -->
+    <!-- Order Details Modal -->
+    <div id="orderModal" class="modal">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">Order Details</h3>
+                    <button class="modal-close" onclick="closeModal('orderModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body" id="orderModalContent">
+                    <!-- Order details will be loaded here -->
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal('orderModal')">Close</button>
+                    <button class="btn btn-success" onclick="showUploadModal()">
+                        <i class="fas fa-upload"></i> Upload Work
+                    </button>
+                    <button class="btn btn-primary" onclick="showContactModal()">
+                        <i class="fas fa-envelope"></i> Contact Customer
+                    </button>
+                    <button class="btn btn-info" onclick="showStatusModal()">
+                        <i class="fas fa-edit"></i> Manage Order
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Work Modal -->
+    <div id="uploadModal" class="modal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">Upload Work Files</h3>
+                    <button class="modal-close" onclick="closeModal('uploadModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="upload-area" id="uploadArea">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Drag & drop files here or click to browse</p>
+                        <input type="file" id="workFile" multiple accept=".pdf,.doc,.docx,.zip,.rar">
+                    </div>
+                    <div class="file-list" id="fileList"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal('uploadModal')">Cancel</button>
+                    <button class="btn btn-success" onclick="uploadWork()">
+                        <i class="fas fa-upload"></i> Upload Files
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Customer Modal -->
+    <div id="contactModal" class="modal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">Contact Customer</h3>
+                    <button class="modal-close" onclick="closeModal('contactModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="messageType">Message Type</label>
+                        <select class="form-control" id="messageType">
+                            <option value="update">Order Update</option>
+                            <option value="question">Question</option>
+                            <option value="clarification">Clarification Needed</option>
+                            <option value="custom">Custom Message</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="customerMessage">Message</label>
+                        <textarea class="form-control" id="customerMessage" rows="5" placeholder="Write your message to the customer..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal('contactModal')">Cancel</button>
+                    <button class="btn btn-primary" onclick="sendCustomerMessage()">
+                        <i class="fas fa-paper-plane"></i> Send Message
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Management Modal -->
+    <div id="statusModal" class="modal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">Manage Order</h3>
+                    <button class="modal-close" onclick="closeModal('statusModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="orderStatus">Order Status</label>
+                        <select class="form-control" id="orderStatus">
+                            <option value="pending">Pending</option>
+                            <option value="paid">Paid</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="completed">Completed</option>
+                            <option value="archived">Archived</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="paymentStatus">Payment Status</label>
+                        <select class="form-control" id="paymentStatus">
+                            <option value="waiting">Waiting</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="failed">Failed</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="adminNotes">Admin Notes</label>
+                        <textarea class="form-control" id="adminNotes" rows="3" placeholder="Internal notes (optional)"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div class="modal-footer-left">
+                        <button class="btn btn-danger" onclick="deleteOrder()">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                        <button class="btn btn-warning" onclick="archiveOrder()">
+                            <i class="fas fa-archive"></i> Archive
+                        </button>
+                    </div>
+                    <div class="modal-footer-right">
+                        <button class="btn btn-secondary" onclick="closeModal('statusModal')">Cancel</button>
+                        <button class="btn btn-success" onclick="updateOrderStatus()">
+                            <i class="fas fa-save"></i> Update Order
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Reset Modal -->
+    <div id="resetModal" class="modal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger">
+                    <h3 class="modal-title text-white">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        DANGER: Reset Database
+                    </h3>
+                    <button class="modal-close text-white" onclick="closeModal('resetModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Warning!</strong> This will permanently delete ALL data including orders, users, and payments. This action cannot be undone!
+                    </div>
+                    <div class="form-group">
+                        <label for="resetConfirmation">Type "RESET_ALL_DATA" to confirm:</label>
+                        <input type="text" class="form-control" id="resetConfirmation" placeholder="RESET_ALL_DATA">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal('resetModal')">Cancel</button>
+                    <button class="btn btn-danger" onclick="resetDatabase()">
+                        <i class="fas fa-database"></i> Reset Database
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <!-- JavaScript -->
+    <script src="/static_2/js/admin_fixed.js"></script>
+</body>
+</html>

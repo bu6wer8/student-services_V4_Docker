@@ -1,0 +1,168 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: student-services-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-student_services}
+      POSTGRES_USER: ${DB_USER:-student_services}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-your_secure_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-student_services}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: student-services-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Web Application
+  web:
+    build: .
+    container_name: student-services-web
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Database Configuration
+      DATABASE_URL: postgresql://${DB_USER:-student_services}:${DB_PASSWORD:-your_secure_password}@postgres:5432/${DB_NAME:-student_services}
+      REDIS_URL: redis://redis:6379
+      
+      # Application Configuration
+      ENV: ${ENV:-production}
+      DEBUG: ${DEBUG:-false}
+      APP_URL: ${APP_URL:-http://localhost}
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-this-in-production}
+      
+      # Admin Configuration
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      
+      # Telegram Bot Configuration
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_ADMIN_ID: ${TELEGRAM_ADMIN_ID:-}
+      
+      # Stripe Payment Configuration
+      STRIPE_PUBLIC_KEY: ${STRIPE_PUBLIC_KEY:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      
+      # Email Configuration
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      
+      # Business Configuration
+      BUSINESS_NAME: ${BUSINESS_NAME:-Student Services Platform}
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL:-support@yourdomain.com}
+      
+      # Bank Transfer Details
+      BANK_NAME: ${BANK_NAME:-Your Bank}
+      BANK_ACCOUNT_NAME: ${BANK_ACCOUNT_NAME:-Your Company}
+      BANK_ACCOUNT_NUMBER: ${BANK_ACCOUNT_NUMBER:-}
+      BANK_IBAN: ${BANK_IBAN:-}
+      BANK_SWIFT: ${BANK_SWIFT:-}
+    volumes:
+      - ./static:/app/static
+      - ./uploaded_works:/app/uploaded_works
+      - ./logs:/app/logs
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Telegram Bot (separate service)
+  bot:
+    build: .
+    container_name: student-services-bot
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Database Configuration
+      DATABASE_URL: postgresql://${DB_USER:-student_services}:${DB_PASSWORD:-your_secure_password}@postgres:5432/${DB_NAME:-student_services}
+      REDIS_URL: redis://redis:6379
+      
+      # Application Configuration
+      ENV: ${ENV:-production}
+      DEBUG: ${DEBUG:-false}
+      APP_URL: ${APP_URL:-http://localhost}
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-this-in-production}
+      
+      # Telegram Bot Configuration
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_ADMIN_ID: ${TELEGRAM_ADMIN_ID:-}
+      
+      # Stripe Configuration (for payment processing)
+      STRIPE_PUBLIC_KEY: ${STRIPE_PUBLIC_KEY:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      
+      # Business Configuration
+      BUSINESS_NAME: ${BUSINESS_NAME:-Student Services Platform}
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL:-support@yourdomain.com}
+    volumes:
+      - ./static:/app/static
+      - ./uploaded_works:/app/uploaded_works
+      - ./logs:/app/logs
+    command: ["python", "app/bot/bot.py"]
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: student-services-nginx
+    restart: unless-stopped
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./static:/var/www/static:ro
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  default:
+    name: student-services-network

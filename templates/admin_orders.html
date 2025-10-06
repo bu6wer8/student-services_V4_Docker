@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orders - Student Services Admin</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico">
+    
+    <!-- External CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- UAE Dirham Symbol -->
+    <link href="https://cdn.jsdelivr.net/npm/new-dirham-symbol@1.0.3/dist/uae-symbol.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static_2/css/admin.css">
+    <link rel="stylesheet" href="/static_2/css/components.css">
+    <link rel="stylesheet" href="/static_2/css/responsive.css">
+    <link rel="stylesheet" href="/static_2/css/admin_enhanced.css">
+</head>
+<body class="admin-body">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Student Services</span>
+            </div>
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <ul>
+                <li class="nav-item">
+                    <a href="/admin" class="nav-link">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item active">
+                    <a href="/admin/orders" class="nav-link">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>Orders</span>
+                        <span class="badge" id="pendingOrdersBadge">{{ pending_orders_count }}</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/customers" class="nav-link">
+                        <i class="fas fa-users"></i>
+                        <span>Customers</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/payments" class="nav-link">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Payments</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/analytics" class="nav-link">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Analytics</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/settings" class="nav-link">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <div class="admin-profile">
+                <div class="profile-avatar">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <div class="profile-info">
+                    <span class="profile-name">Admin</span>
+                    <span class="profile-role">Administrator</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Orders Management</h1>
+            </div>
+            
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-icon" id="refreshBtn" title="Refresh Data">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    
+                    <div class="connection-status" id="connectionStatus">
+                        <i class="fas fa-circle"></i>
+                        <span>Connected</span>
+                    </div>
+                    
+                    <div class="dropdown">
+                        <button class="btn btn-icon dropdown-toggle" id="adminMenuToggle">
+                            <i class="fas fa-user-circle"></i>
+                        </button>
+                        <div class="dropdown-menu" id="adminMenu">
+                            <a href="#" class="dropdown-item">
+                                <i class="fas fa-user"></i> Profile
+                            </a>
+                            <a href="/admin/settings" class="dropdown-item">
+                                <i class="fas fa-cog"></i> Settings
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a href="#" class="dropdown-item text-danger" id="logoutBtn">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <div class="section-header">
+                <h2><i class="fas fa-shopping-cart"></i> Orders Management</h2>
+                <div class="section-actions">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="orderSearch" placeholder="Search orders..." class="form-control">
+                    </div>
+                    <select id="statusFilter" class="form-select">
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="paid">Paid</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="completed">Completed</option>
+                        <option value="archived">Archived</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="exportOrders()">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+            </div>
+
+            <!-- Orders Stats -->
+            <div class="stats-row mb-4">
+                <div class="stat-card">
+                    <div class="stat-icon bg-primary">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ orders|length }}</h3>
+                        <p>Total Orders</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon bg-warning">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ orders|selectattr("status", "equalto", "pending")|list|length }}</h3>
+                        <p>Pending Orders</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon bg-info">
+                        <i class="fas fa-spinner"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ orders|selectattr("status", "equalto", "in_progress")|list|length }}</h3>
+                        <p>In Progress</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon bg-success">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>{{ orders|selectattr("status", "equalto", "completed")|list|length }}</h3>
+                        <p>Completed</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table class="data-table" id="ordersTable">
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-hashtag"></i> Order #</th>
+                            <th><i class="fas fa-user"></i> Customer</th>
+                            <th><i class="fas fa-cog"></i> Service</th>
+                            <th><i class="fas fa-money-bill-wave"></i> Amount</th>
+                            <th><i class="fas fa-credit-card"></i> Payment</th>
+                            <th><i class="fas fa-circle"></i> Status</th>
+                            <th><i class="fas fa-calendar"></i> Date</th>
+                            <th><i class="fas fa-cogs"></i> Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody">
+                        {% if orders %}
+                            {% for order in orders %}
+                            <tr>
+                                <td>
+                                    <strong>{{ order.order_number or order.id }}</strong>
+                                    <small class="text-muted d-block">{{ order.subject or 'No subject' }}</small>
+                                </td>
+                                <td>
+                                    <div class="customer-info">
+                                        <div class="customer-avatar">{{ (order.customer_name or 'U')[0:2]|upper }}</div>
+                                        <div class="customer-details">
+                                            <strong>{{ order.customer_name or 'Unknown' }}</strong>
+                                            <small>{{ order.customer_email or 'No email' }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge badge-info">{{ order.service_type or 'Unknown' }}</span>
+                                </td>
+                                <td>
+                                    <strong><span class="uae-dirham">د.إ</span> {{ "%.2f"|format(order.total_price or 0) }}</strong>
+                                    <small class="text-muted d-block">{{ order.currency or 'AED' }}</small>
+                                </td>
+                                <td>
+                                    {% if order.payment_status == 'confirmed' %}
+                                        <span class="badge badge-success">Confirmed</span>
+                                    {% elif order.payment_status == 'waiting' %}
+                                        <span class="badge badge-warning">Waiting</span>
+                                    {% elif order.payment_status == 'failed' %}
+                                        <span class="badge badge-danger">Failed</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">Unknown</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if order.status == 'pending' %}
+                                        <span class="badge badge-warning">Pending</span>
+                                    {% elif order.status == 'paid' %}
+                                        <span class="badge badge-info">Paid</span>
+                                    {% elif order.status == 'in_progress' %}
+                                        <span class="badge badge-primary">In Progress</span>
+                                    {% elif order.status == 'delivered' %}
+                                        <span class="badge badge-success">Delivered</span>
+                                    {% elif order.status == 'completed' %}
+                                        <span class="badge badge-success">Completed</span>
+                                    {% elif order.status == 'archived' %}
+                                        <span class="badge badge-secondary">Archived</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">Unknown</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ order.created_at.strftime('%Y-%m-%d %H:%M') if order.created_at else 'N/A' }}</strong>
+                                    {% if order.deadline %}
+                                        <small class="text-muted d-block">Due: {{ order.deadline.strftime('%Y-%m-%d') }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary" onclick="viewOrder({{ order.id }})">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                    <button class="btn btn-sm btn-success" onclick="manageOrder({{ order.id }})">
+                                        <i class="fas fa-cog"></i> Manage
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted">No orders found</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if not orders %}
+            <div id="noOrders" class="empty-state">
+                <i class="fas fa-shopping-cart"></i>
+                <h3>No Orders Found</h3>
+                <p>Orders will appear here once customers start placing them.</p>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <!-- Order Details Modal -->
+    <div id="orderModal" class="modal">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">Order Details</h3>
+                    <button class="modal-close" onclick="closeModal('orderModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body" id="orderModalContent">
+                    <!-- Order details will be loaded here -->
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal('orderModal')">Close</button>
+                    <button class="btn btn-success" onclick="showUploadModal()">
+                        <i class="fas fa-upload"></i> Upload Work
+                    </button>
+                    <button class="btn btn-primary" onclick="showContactModal()">
+                        <i class="fas fa-envelope"></i> Contact Customer
+                    </button>
+                    <button class="btn btn-info" onclick="showStatusModal()">
+                        <i class="fas fa-edit"></i> Manage Order
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <script>
+        // Basic functionality
+        document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        });
+        
+        document.getElementById('mobileMenuToggle')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('mobile-open');
+        });
+        
+        document.getElementById('adminMenuToggle')?.addEventListener('click', function() {
+            document.getElementById('adminMenu').classList.toggle('show');
+        });
+        
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown')) {
+                document.getElementById('adminMenu')?.classList.remove('show');
+            }
+        });
+        
+        document.getElementById('refreshBtn')?.addEventListener('click', function() {
+            location.reload();
+        });
+        
+        // Search functionality
+        document.getElementById('orderSearch')?.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const rows = document.querySelectorAll('#ordersTableBody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            });
+        });
+        
+        // Status filter
+        document.getElementById('statusFilter')?.addEventListener('change', function() {
+            const filterValue = this.value.toLowerCase();
+            const rows = document.querySelectorAll('#ordersTableBody tr');
+            
+            rows.forEach(row => {
+                if (!filterValue) {
+                    row.style.display = '';
+                } else {
+                    const statusCell = row.querySelector('td:nth-child(6)');
+                    const statusText = statusCell ? statusCell.textContent.toLowerCase() : '';
+                    row.style.display = statusText.includes(filterValue) ? '' : 'none';
+                }
+            });
+        });
+        
+        // Order management functions
+        function viewOrder(orderId) {
+            // Fetch order details and show modal
+            fetch(`/api/orders/${orderId}`)
+                .then(response => response.json())
+                .then(order => {
+                    document.getElementById('orderModalContent').innerHTML = `
+                        <div class="order-details">
+                            <div class="detail-row">
+                                <strong>Order Number:</strong> ${order.order_number || order.id}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Customer:</strong> ${order.customer_name || 'Unknown'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Email:</strong> ${order.customer_email || 'No email'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Service:</strong> ${order.service_type || 'Unknown'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Subject:</strong> ${order.subject || 'No subject'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Amount:</strong> <span class="uae-dirham">د.إ</span> ${parseFloat(order.total_price || 0).toFixed(2)}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Status:</strong> ${order.status || 'Unknown'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Payment:</strong> ${order.payment_status || 'Unknown'}
+                            </div>
+                            <div class="detail-row">
+                                <strong>Created:</strong> ${order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'}
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('orderModal').style.display = 'flex';
+                })
+                .catch(error => {
+                    console.error('Error fetching order:', error);
+                    alert('Failed to load order details');
+                });
+        }
+        
+        function manageOrder(orderId) {
+            alert(`Order management for order ${orderId} will be implemented soon`);
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        
+        function exportOrders() {
+            alert('Export functionality will be implemented soon');
+        }
+        
+        // Close modal when clicking outside
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal')) {
+                e.target.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
