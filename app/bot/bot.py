@@ -1,19 +1,7 @@
 #!/usr/bin/env python3
 """
-Student Services Platform - Telegram Bot (Fixed Version)
-Production-ready bot with comprehensive order management and payment processing
-
-Improvements implemented:
-1. Better dependency handling with fail-fast approach
-2. Redis-based state storage for production
-3. Proper database session management with context managers
-4. Enhanced error handling with user-friendly messages
-5. Secure file handling with sanitization
-6. Separated payment processing logic
-7. Markdown escaping for user input (FIXED f-string issues)
-8. Structured logging with user traceability
-9. Fallback handlers for unexpected callbacks
-10. Helper functions to reduce code duplication
+Student Services Platform - Telegram Bot (Arabic Support + Enhanced UX)
+Multi-language bot with Arabic support and improved user journey
 """
 
 import asyncio
@@ -24,26 +12,22 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 from contextlib import contextmanager
-import json
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-# Import aiogram with fail-fast approach
+# Import aiogram
 try:
     from aiogram import Bot, Dispatcher, types, F
     from aiogram.filters import Command, StateFilter
     from aiogram.fsm.context import FSMContext
     from aiogram.fsm.storage.memory import MemoryStorage
-    from aiogram.fsm.storage.redis import RedisStorage
     from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
     from aiogram.utils.keyboard import InlineKeyboardBuilder
-    from aiogram.utils.markdown import escape_md
     from sqlalchemy.orm import Session
 except ImportError as e:
-    print(f"Critical Error: aiogram not available: {e}")
-    print("Bot cannot start without aiogram. Install with: pip install aiogram")
+    print(f"Error: aiogram not available: {e}")
     sys.exit(1)
 
 # Import application modules
@@ -52,34 +36,314 @@ from app.models.database import get_db, init_database
 from app.models.models import User, Order, Payment, Feedback
 from app.services.pricing import PricingService
 from app.services.payment import PaymentService
-from app.services.notification import NotificationService
-from app.bot.states import OrderStates, PaymentStates, FeedbackStates
-from app.bot.keyboards import (
-    get_main_menu, get_service_menu, get_academic_level_menu,
-    get_currency_menu, get_payment_method_menu, get_order_actions_menu
-)
 
-# Configure structured logging with user traceability
-class UserContextFilter(logging.Filter):
-    """Add user context to log records"""
-    def filter(self, record):
-        if not hasattr(record, 'user_id'):
-            record.user_id = 'unknown'
-        return True
+# Import existing states
+from app.bot.states import OrderStates, FeedbackStates, SupportStates, RegistrationStates
 
+# Simple logging setup
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s [user:%(user_id)s] - %(message)s",
-    handlers=[
-        logging.FileHandler("logs/bot.log"),
-        logging.StreamHandler(sys.stdout)
-    ]
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s"
 )
 logger = logging.getLogger("telegram-bot")
-logger.addFilter(UserContextFilter())
+
+# -------------------------------------------------
+# Multi-language Support
+# -------------------------------------------------
+
+MESSAGES = {
+    'en': {
+        'welcome_title': '🎓 **Welcome to Student Services Platform!**',
+        'language_prompt': 'Please select your preferred language:',
+        'welcome_message': '''Hello {name}! 👋
+
+We provide high-quality academic writing services:
+📝 Assignments & Essays
+📊 Projects & Research  
+🎯 Presentations
+✨ And much more!
+
+**What would you like to do?**''',
+        'main_menu': {
+            'new_order': '📝 New Order',
+            'my_orders': '📋 My Orders', 
+            'support': '💬 Contact Support',
+            'help': 'ℹ️ Help'
+        },
+        'services': {
+            'assignment': '📝 Assignments',
+            'project': '💻 IT Projects',
+            'presentation': '📊 Presentations', 
+            'redesign': '🔄 Redesign Presentation',
+            'summary': '📚 Course Summary',
+            'express': '⚡ Express (24hr)'
+        },
+        'academic_levels': {
+            'high_school': 'High School',
+            'bachelor': 'Bachelor',
+            'masters': 'Masters', 
+            'phd': 'PhD'
+        },
+        'currencies': {
+            'AED': '🇦🇪 UAE Dirham (AED)',
+            'USD': '🇺🇸 US Dollar (USD)',
+            'JOD': '🇯🇴 Jordanian Dinar (JOD)'
+        },
+        'payment_methods': {
+            'stripe': '💳 Pay with Card (Stripe)',
+            'bank': '🏦 Bank Transfer'
+        },
+        'order_flow': {
+            'service_selection': '📝 **New Order**\n\nPlease select the type of service you need:',
+            'subject_prompt': '📝 **{service} Order**\n\nPlease enter the **subject/title** of your work:\n\nExample: "Marketing Strategy Analysis" or "Python Programming Assignment"',
+            'requirements_prompt': '''📋 **Requirements**
+
+Please provide detailed requirements for your work:
+
+Include:
+• Number of pages/words
+• Specific instructions  
+• Format requirements (APA, MLA, etc.)
+• Any special requirements
+
+The more details you provide, the better we can serve you!''',
+            'academic_level_prompt': '🎓 **Academic Level**\n\nPlease select your academic level:',
+            'deadline_prompt': '''⏰ **Deadline**
+
+Please enter your deadline in one of these formats:
+
+📅 **Date & Time:** "2024-12-25 14:30"
+📅 **Date Only:** "2024-12-25"
+⏱️ **Hours:** "24 hours" or "3 days"
+
+Examples:
+• "2024-12-25 14:30"
+• "2024-12-25"  
+• "48 hours"
+• "3 days"''',
+            'currency_prompt': '💰 **Currency**\n\nPlease select your preferred currency:',
+            'notes_prompt': '''📋 **Order Summary**
+
+📝 **Service:** {service}
+📚 **Subject:** {subject}
+🎓 **Level:** {level}
+⏰ **Deadline:** {deadline}
+
+💰 **Pricing:**
+• Base Price: {base_price:.2f} {currency}
+• Academic Level: {academic_multiplier:.1f}x
+• Urgency: {urgency_multiplier:.1f}x
+• **Total: {total_price:.2f} {currency}**
+
+Do you want to add any special notes? (Optional)
+Send "skip" to continue without notes.''',
+            'order_created': '''✅ **Order Created Successfully!**
+
+📋 **Order #{order_number}**
+💰 **Total: {total:.2f} {currency}**
+
+Please select your payment method:'''
+        },
+        'errors': {
+            'general': '❌ An error occurred. Please try again.',
+            'subject_short': '❌ Subject is too short. Please provide a more detailed subject (at least 5 characters).',
+            'requirements_short': '❌ Requirements are too brief. Please provide more detailed requirements (at least 20 characters).',
+            'deadline_future': '❌ Deadline must be in the future. Please enter a valid deadline.',
+            'deadline_format': '''❌ Invalid deadline format. Please use one of these formats:
+
+📅 **Date & Time:** "2024-12-25 14:30"
+📅 **Date Only:** "2024-12-25"
+⏱️ **Hours:** "24 hours" or "48 hours"
+⏱️ **Days:** "3 days" or "7 days"'''
+        }
+    },
+    'ar': {
+        'welcome_title': '🎓 **مرحباً بك في منصة الخدمات الطلابية!**',
+        'language_prompt': 'يرجى اختيار لغتك المفضلة:',
+        'welcome_message': '''مرحباً {name}! 👋
+
+نحن نقدم خدمات كتابة أكاديمية عالية الجودة:
+📝 الواجبات والمقالات
+📊 المشاريع والأبحاث
+🎯 العروض التقديمية
+✨ والمزيد!
+
+**ماذا تريد أن تفعل؟**''',
+        'main_menu': {
+            'new_order': '📝 طلب جديد',
+            'my_orders': '📋 طلباتي',
+            'support': '💬 اتصل بالدعم',
+            'help': 'ℹ️ مساعدة'
+        },
+        'services': {
+            'assignment': '📝 الواجبات',
+            'project': '💻 مشاريع تقنية',
+            'presentation': '📊 عروض تقديمية',
+            'redesign': '🔄 إعادة تصميم العرض',
+            'summary': '📚 ملخص المقرر',
+            'express': '⚡ خدمة سريعة (24 ساعة)'
+        },
+        'academic_levels': {
+            'high_school': 'المرحلة الثانوية',
+            'bachelor': 'البكالوريوس',
+            'masters': 'الماجستير',
+            'phd': 'الدكتوراه'
+        },
+        'currencies': {
+            'AED': '🇦🇪 درهم إماراتي (AED)',
+            'USD': '🇺🇸 دولار أمريكي (USD)', 
+            'JOD': '🇯🇴 دينار أردني (JOD)'
+        },
+        'payment_methods': {
+            'stripe': '💳 الدفع بالبطاقة (Stripe)',
+            'bank': '🏦 تحويل بنكي'
+        },
+        'order_flow': {
+            'service_selection': '📝 **طلب جديد**\n\nيرجى اختيار نوع الخدمة التي تحتاجها:',
+            'subject_prompt': '📝 **طلب {service}**\n\nيرجى إدخال **موضوع/عنوان** عملك:\n\nمثال: "تحليل استراتيجية التسويق" أو "واجب برمجة Python"',
+            'requirements_prompt': '''📋 **المتطلبات**
+
+يرجى تقديم متطلبات مفصلة لعملك:
+
+تشمل:
+• عدد الصفحات/الكلمات
+• تعليمات محددة
+• متطلبات التنسيق (APA، MLA، إلخ)
+• أي متطلبات خاصة
+
+كلما قدمت تفاصيل أكثر، كلما تمكنا من خدمتك بشكل أفضل!''',
+            'academic_level_prompt': '🎓 **المستوى الأكاديمي**\n\nيرجى اختيار مستواك الأكاديمي:',
+            'deadline_prompt': '''⏰ **الموعد النهائي**
+
+يرجى إدخال موعدك النهائي بأحد هذه التنسيقات:
+
+📅 **التاريخ والوقت:** "2024-12-25 14:30"
+📅 **التاريخ فقط:** "2024-12-25"
+⏱️ **الساعات:** "24 hours" أو "3 days"
+
+أمثلة:
+• "2024-12-25 14:30"
+• "2024-12-25"
+• "48 hours"
+• "3 days"''',
+            'currency_prompt': '💰 **العملة**\n\nيرجى اختيار عملتك المفضلة:',
+            'notes_prompt': '''📋 **ملخص الطلب**
+
+📝 **الخدمة:** {service}
+📚 **الموضوع:** {subject}
+🎓 **المستوى:** {level}
+⏰ **الموعد النهائي:** {deadline}
+
+💰 **التسعير:**
+• السعر الأساسي: {base_price:.2f} {currency}
+• المستوى الأكاديمي: {academic_multiplier:.1f}x
+• الاستعجال: {urgency_multiplier:.1f}x
+• **المجموع: {total_price:.2f} {currency}**
+
+هل تريد إضافة أي ملاحظات خاصة؟ (اختياري)
+أرسل "skip" للمتابعة بدون ملاحظات.''',
+            'order_created': '''✅ **تم إنشاء الطلب بنجاح!**
+
+📋 **الطلب رقم #{order_number}**
+💰 **المجموع: {total:.2f} {currency}**
+
+يرجى اختيار طريقة الدفع:'''
+        },
+        'errors': {
+            'general': '❌ حدث خطأ. يرجى المحاولة مرة أخرى.',
+            'subject_short': '❌ الموضوع قصير جداً. يرجى تقديم موضوع أكثر تفصيلاً (5 أحرف على الأقل).',
+            'requirements_short': '❌ المتطلبات مختصرة جداً. يرجى تقديم متطلبات أكثر تفصيلاً (20 حرف على الأقل).',
+            'deadline_future': '❌ يجب أن يكون الموعد النهائي في المستقبل. يرجى إدخال موعد صحيح.',
+            'deadline_format': '''❌ تنسيق الموعد النهائي غير صحيح. يرجى استخدام أحد هذه التنسيقات:
+
+📅 **التاريخ والوقت:** "2024-12-25 14:30"
+📅 **التاريخ فقط:** "2024-12-25"
+⏱️ **الساعات:** "24 hours" أو "48 hours"
+⏱️ **الأيام:** "3 days" أو "7 days"'''
+        }
+    }
+}
+
+def get_text(lang: str, key: str, **kwargs) -> str:
+    """Get localized text with formatting"""
+    keys = key.split('.')
+    text = MESSAGES.get(lang, MESSAGES['en'])
+    
+    for k in keys:
+        text = text.get(k, key)
+    
+    if isinstance(text, str) and kwargs:
+        return text.format(**kwargs)
+    return text
+
+# -------------------------------------------------
+# Keyboard Builders
+# -------------------------------------------------
+
+def get_language_keyboard():
+    """Language selection keyboard"""
+    keyboard = InlineKeyboardBuilder()
+    keyboard.button(text="English 🇬🇧", callback_data="lang_en")
+    keyboard.button(text="العربية 🇸🇦", callback_data="lang_ar")
+    keyboard.adjust(1)
+    return keyboard.as_markup()
+
+def get_main_menu_keyboard(lang: str = 'en'):
+    """Main menu keyboard"""
+    keyboard = InlineKeyboardBuilder()
+    keyboard.button(text=get_text(lang, 'main_menu.new_order'), callback_data="new_order")
+    keyboard.button(text=get_text(lang, 'main_menu.my_orders'), callback_data="my_orders")
+    keyboard.button(text=get_text(lang, 'main_menu.support'), callback_data="contact_support")
+    keyboard.button(text=get_text(lang, 'main_menu.help'), callback_data="help")
+    keyboard.adjust(2)
+    return keyboard.as_markup()
+
+def get_services_keyboard(lang: str = 'en'):
+    """Services selection keyboard"""
+    keyboard = InlineKeyboardBuilder()
+    keyboard.button(text=get_text(lang, 'services.assignment'), callback_data="service_assignment")
+    keyboard.button(text=get_text(lang, 'services.project'), callback_data="service_project")
+    keyboard.button(text=get_text(lang, 'services.presentation'), callback_data="service_presentation")
+    keyboard.button(text=get_text(lang, 'services.redesign'), callback_data="service_redesign")
+    keyboard.button(text=get_text(lang, 'services.summary'), callback_data="service_summary")
+    keyboard.button(text=get_text(lang, 'services.express'), callback_data="service_express")
+    keyboard.adjust(2)
+    return keyboard.as_markup()
+
+def get_academic_level_keyboard(lang: str = 'en'):
+    """Academic level selection keyboard"""
+    keyboard = InlineKeyboardBuilder()
+    keyboard.button(text=get_text(lang, 'academic_levels.high_school'), callback_data="level_high_school")
+    keyboard.button(text=get_text(lang, 'academic_levels.bachelor'), callback_data="level_bachelor")
+    keyboard.button(text=get_text(lang, 'academic_levels.masters'), callback_data="level_masters")
+    keyboard.button(text=get_text(lang, 'academic_levels.phd'), callback_data="level_phd")
+    keyboard.adjust(2)
+    return keyboard.as_markup()
+
+def get_currency_keyboard(lang: str = 'en'):
+    """Currency selection keyboard - AED as main currency"""
+    keyboard = InlineKeyboardBuilder()
+    # AED first as main currency
+    keyboard.button(text=get_text(lang, 'currencies.AED'), callback_data="currency_AED")
+    keyboard.button(text=get_text(lang, 'currencies.USD'), callback_data="currency_USD")
+    keyboard.button(text=get_text(lang, 'currencies.JOD'), callback_data="currency_JOD")
+    keyboard.adjust(1)
+    return keyboard.as_markup()
+
+def get_payment_keyboard(lang: str = 'en'):
+    """Payment method selection keyboard"""
+    keyboard = InlineKeyboardBuilder()
+    keyboard.button(text=get_text(lang, 'payment_methods.stripe'), callback_data="pay_stripe")
+    keyboard.button(text=get_text(lang, 'payment_methods.bank'), callback_data="pay_bank")
+    keyboard.adjust(1)
+    return keyboard.as_markup()
+
+# -------------------------------------------------
+# Database Manager
+# -------------------------------------------------
 
 class DatabaseManager:
-    """Context manager for database sessions"""
+    """Simple database session manager"""
     
     @staticmethod
     @contextmanager
@@ -95,60 +359,23 @@ class DatabaseManager:
         finally:
             db.close()
 
-class FileHandler:
-    """Secure file handling utilities"""
-    
-    @staticmethod
-    def sanitize_filename(filename: str) -> str:
-        """Sanitize filename to prevent path traversal"""
-        import re
-        # Remove path separators and dangerous characters
-        filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
-        # Remove leading dots and spaces
-        filename = filename.lstrip('. ')
-        # Limit length
-        if len(filename) > 255:
-            name, ext = os.path.splitext(filename)
-            filename = name[:250] + ext
-        return filename or 'unnamed_file'
-    
-    @staticmethod
-    def get_safe_upload_path(base_dir: str, filename: str, subfolder: str = "") -> str:
-        """Get safe upload path with directory creation"""
-        safe_filename = FileHandler.sanitize_filename(filename)
-        upload_dir = os.path.join(base_dir, subfolder) if subfolder else base_dir
-        os.makedirs(upload_dir, exist_ok=True)
-        return os.path.join(upload_dir, safe_filename)
+# -------------------------------------------------
+# Main Bot Class
+# -------------------------------------------------
 
 class StudentServicesBot:
     """
-    Main bot class for handling all Telegram interactions
+    Multi-language bot with Arabic support and enhanced UX
     """
     
     def __init__(self):
-        # Fail fast if required configuration is missing
         if not settings.telegram_bot_token:
-            logger.error("TELEGRAM_BOT_TOKEN not configured. Bot cannot start.")
             raise ValueError("TELEGRAM_BOT_TOKEN is required")
         
         self.bot = Bot(token=settings.telegram_bot_token)
-        
-        # Use Redis storage for production, fallback to memory for development
-        try:
-            if hasattr(settings, 'redis_url') and settings.redis_url:
-                storage = RedisStorage.from_url(settings.redis_url)
-                logger.info("Using Redis storage for FSM")
-            else:
-                storage = MemoryStorage()
-                logger.warning("Using Memory storage for FSM - not recommended for production")
-        except Exception as e:
-            logger.warning(f"Failed to connect to Redis, using Memory storage: {e}")
-            storage = MemoryStorage()
-        
-        self.dp = Dispatcher(storage=storage)
+        self.dp = Dispatcher(storage=MemoryStorage())
         self.pricing_service = PricingService()
         self.payment_service = PaymentService()
-        self.notification_service = NotificationService()
         
         # Register handlers
         self._register_handlers()
@@ -164,444 +391,226 @@ class StudentServicesBot:
         self.dp.message.register(self.cmd_orders, Command("orders"))
         self.dp.message.register(self.cmd_cancel, Command("cancel"))
         
+        # Language selection
+        self.dp.callback_query.register(self.handle_language_selection, F.data.startswith("lang_"))
+        
         # Main menu handlers
         self.dp.callback_query.register(self.handle_new_order, F.data == "new_order")
         self.dp.callback_query.register(self.handle_my_orders, F.data == "my_orders")
-        self.dp.callback_query.register(self.handle_support, F.data == "support")
-        self.dp.callback_query.register(self.handle_feedback, F.data == "feedback")
-        self.dp.callback_query.register(self.handle_main_menu, F.data == "main_menu")
+        self.dp.callback_query.register(self.handle_contact_support, F.data == "contact_support")
+        self.dp.callback_query.register(self.handle_help, F.data == "help")
         
-        # Order creation flow
+        # Service selection
         self.dp.callback_query.register(self.handle_service_selection, F.data.startswith("service_"))
-        self.dp.callback_query.register(self.handle_academic_level, F.data.startswith("level_"))
-        self.dp.callback_query.register(self.handle_currency_selection, F.data.startswith("currency_"))
-        self.dp.callback_query.register(self.handle_payment_method, F.data.startswith("payment_"))
         
-        # Order management
-        self.dp.callback_query.register(self.handle_order_action, F.data.startswith("order_"))
-        self.dp.callback_query.register(self.handle_payment_action, F.data.startswith("pay_"))
-        self.dp.callback_query.register(self.handle_upload_receipt, F.data.startswith("upload_receipt_"))
+        # Academic level selection
+        self.dp.callback_query.register(self.handle_academic_level, F.data.startswith("level_"))
+        
+        # Currency selection
+        self.dp.callback_query.register(self.handle_currency_selection, F.data.startswith("currency_"))
+        
+        # Payment method selection
+        self.dp.callback_query.register(self.handle_payment_method, F.data.startswith("pay_"))
         
         # State handlers
-        self.dp.message.register(self.handle_subject_input, StateFilter(OrderStates.waiting_for_subject))
-        self.dp.message.register(self.handle_requirements_input, StateFilter(OrderStates.waiting_for_requirements))
-        self.dp.message.register(self.handle_deadline_input, StateFilter(OrderStates.waiting_for_deadline))
-        self.dp.message.register(self.handle_special_notes, StateFilter(OrderStates.waiting_for_notes))
-        
-        # Payment handlers
-        self.dp.message.register(self.handle_bank_receipt, StateFilter(PaymentStates.waiting_for_receipt), F.document)
+        self.dp.message.register(self.handle_subject_input, StateFilter(OrderStates.subject))
+        self.dp.message.register(self.handle_requirements_input, StateFilter(OrderStates.requirements))
+        self.dp.message.register(self.handle_deadline_input, StateFilter(OrderStates.deadline))
+        self.dp.message.register(self.handle_special_notes, StateFilter(OrderStates.special_notes))
         
         # Feedback handlers
-        self.dp.message.register(self.handle_feedback_rating, StateFilter(FeedbackStates.waiting_for_rating))
-        self.dp.message.register(self.handle_feedback_comment, StateFilter(FeedbackStates.waiting_for_comment))
+        self.dp.message.register(self.handle_feedback_rating, StateFilter(FeedbackStates.rating))
+        self.dp.message.register(self.handle_feedback_comment, StateFilter(FeedbackStates.comment))
         
         # File handlers
         self.dp.message.register(self.handle_file_upload, F.document)
         
-        # Fallback handler for unexpected callbacks
-        self.dp.callback_query.register(self.handle_unknown_callback)
-        
         # Error handler
         self.dp.error.register(self.error_handler)
     
-    def _log_with_user_context(self, level: str, message: str, user_id: Optional[str] = None):
-        """Log with user context"""
-        extra = {'user_id': user_id or 'unknown'}
-        getattr(logger, level)(message, extra=extra)
-    
-    async def _send_notification(self, order: Order, subject: str, message: str):
-        """Helper function to send notifications"""
-        try:
-            # Send email notification
-            await self.notification_service.send_email(
-                to_email=order.user.email,
-                subject=subject,
-                message=message
-            )
-            
-            # Send Telegram notification to admin if configured
-            if hasattr(settings, 'telegram_admin_id') and settings.telegram_admin_id:
-                admin_message = f"📋 Order #{order.order_number}\n{message}"
-                await self.bot.send_message(
-                    chat_id=settings.telegram_admin_id,
-                    text=admin_message,
-                    parse_mode="Markdown"
-                )
-        except Exception as e:
-            self._log_with_user_context('error', f"Failed to send notification: {e}", str(order.user.telegram_id))
-    
-    async def _handle_user_error(self, message_or_callback, error_message: str = None):
-        """Send user-friendly error message"""
-        error_text = error_message or "❌ An error occurred. Please try again or contact support."
-        
-        try:
-            if isinstance(message_or_callback, CallbackQuery):
-                await message_or_callback.answer("❌ Error occurred")
-                await message_or_callback.message.answer(
-                    error_text,
-                    reply_markup=get_main_menu(),
-                    parse_mode="Markdown"
-                )
-            else:
-                await message_or_callback.answer(
-                    error_text,
-                    reply_markup=get_main_menu(),
-                    parse_mode="Markdown"
-                )
-        except Exception as e:
-            logger.error(f"Failed to send error message: {e}")
-    
     async def cmd_start(self, message: Message, state: FSMContext):
-        """Handle /start command"""
-        user_id = str(message.from_user.id)
+        """Handle /start command - Language selection first"""
         try:
             await state.clear()
             
-            # Get or create user
-            user = await self._get_or_create_user(message.from_user)
+            # Check if user exists and has language preference
+            user = await self._get_user_if_exists(message.from_user)
             
-            welcome_text = f"""
-🎓 **Welcome to Student Services Platform!**
+            if user and user.get('language'):
+                # User exists with language preference, show main menu
+                await self._show_main_menu(message, user['language'], user['full_name'])
+            else:
+                # New user or no language set, show language selection
+                welcome_text = """🎓 **Welcome to Student Services Platform!**
+مرحباً بك في منصة الخدمات الطلابية!
 
-Hello {user.full_name}! 👋
-
-We provide high-quality academic writing services:
-📝 Assignments & Essays
-📊 Projects & Research
-🎯 Presentations
-✨ And much more!
-
-**What would you like to do?**
-            """
-            
-            await message.answer(
-                welcome_text,
-                reply_markup=get_main_menu(),
-                parse_mode="Markdown"
-            )
-            
-            self._log_with_user_context('info', f"User started the bot", user_id)
-            
-        except Exception as e:
-            self._log_with_user_context('error', f"Error in start command: {e}", user_id)
-            await self._handle_user_error(message)
-    
-    async def cmd_help(self, message: Message):
-        """Handle /help command"""
-        user_id = str(message.from_user.id)
-        try:
-            support_email = settings.support_email or 'support@example.com'
-            help_text = f"""
-🆘 **Help & Support**
-
-**Available Commands:**
-/start - Start the bot and show main menu
-/orders - View your orders
-/cancel - Cancel current operation
-/help - Show this help message
-
-**How to place an order:**
-1️⃣ Click "📝 New Order"
-2️⃣ Select service type
-3️⃣ Fill in requirements
-4️⃣ Choose payment method
-5️⃣ Complete payment
-
-**Payment Methods:**
-💳 Credit/Debit Card (Instant)
-🏦 Bank Transfer (24h verification)
-
-**Support:**
-📧 Email: {support_email}
-
-**Business Hours:**
-🕐 24/7 Support Available
-            """
-            
-            await message.answer(help_text, parse_mode="Markdown")
-            self._log_with_user_context('info', "Help command used", user_id)
-            
-        except Exception as e:
-            self._log_with_user_context('error', f"Error in help command: {e}", user_id)
-            await self._handle_user_error(message)
-
-    async def cmd_orders(self, message: Message):
-        """Handle /orders command"""
-        user_id = str(message.from_user.id)
-        try:
-            user = await self._get_or_create_user(message.from_user)
-            
-            # Use context manager for database session
-            with DatabaseManager.get_session() as db:
-                orders = db.query(Order).filter(Order.user_id == user.id).order_by(Order.created_at.desc()).limit(10).all()
-                
-                if not orders:
-                    await message.answer(
-                        "📋 **Your Orders**\n\nYou haven't placed any orders yet.\n\nClick 'New Order' to get started!",
-                        reply_markup=get_main_menu(),
-                        parse_mode="Markdown"
-                    )
-                    return
-                
-                orders_text = "📋 **Your Recent Orders:**\n\n"
-                
-                for order in orders:
-                    status_emoji = {
-                        'pending': '⏳',
-                        'confirmed': '✅',
-                        'in_progress': '🔄',
-                        'delivered': '📦',
-                        'completed': '✅',
-                        'cancelled': '❌'
-                    }.get(order.status, '❓')
-                    
-                    payment_emoji = {
-                        'pending': '⏳',
-                        'paid': '✅',
-                        'failed': '❌',
-                        'refunded': '↩️'
-                    }.get(order.payment_status, '❓')
-                    
-                    orders_text += f"""
-{status_emoji} **Order #{order.order_number}**
-📝 {order.service_type.title()} - {order.subject}
-💰 {order.total_amount} {order.currency}
-💳 Payment: {payment_emoji} {order.payment_status.title()}
-📅 Created: {order.created_at.strftime('%Y-%m-%d %H:%M')}
-
-"""
-                
-                # Create inline keyboard for order actions
-                keyboard = InlineKeyboardBuilder()
-                keyboard.button(text="📝 New Order", callback_data="new_order")
-                keyboard.button(text="🔄 Refresh", callback_data="my_orders")
-                keyboard.adjust(2)
+Please select your preferred language:
+يرجى اختيار لغتك المفضلة:"""
                 
                 await message.answer(
-                    orders_text,
-                    reply_markup=keyboard.as_markup(),
+                    welcome_text,
+                    reply_markup=get_language_keyboard(),
                     parse_mode="Markdown"
                 )
-                
-                self._log_with_user_context('info', f"Orders viewed, count: {len(orders)}", user_id)
-                
+            
+            logger.info(f"User {message.from_user.id} started the bot")
+            
         except Exception as e:
-            self._log_with_user_context('error', f"Error in orders command: {e}", user_id)
-            await self._handle_user_error(message, "❌ Error fetching your orders. Please try again.")
+            logger.error(f"Error in start command: {e}")
+            await message.answer("❌ An error occurred. Please try again.\n❌ حدث خطأ. يرجى المحاولة مرة أخرى.")
     
-    async def cmd_cancel(self, message: Message, state: FSMContext):
-        """Handle /cancel command"""
-        user_id = str(message.from_user.id)
-        try:
-            await state.clear()
-            await message.answer(
-                "❌ **Operation Cancelled**\n\nReturning to main menu...",
-                reply_markup=get_main_menu(),
-                parse_mode="Markdown"
-            )
-            self._log_with_user_context('info', "Operation cancelled", user_id)
-        except Exception as e:
-            self._log_with_user_context('error', f"Error in cancel command: {e}", user_id)
-            await self._handle_user_error(message)
-    
-    async def handle_main_menu(self, callback: CallbackQuery, state: FSMContext):
-        """Handle main menu callback"""
-        user_id = str(callback.from_user.id)
+    async def handle_language_selection(self, callback: CallbackQuery, state: FSMContext):
+        """Handle language selection"""
         try:
             await callback.answer()
-            await state.clear()
             
-            user = await self._get_or_create_user(callback.from_user)
+            language = callback.data.replace("lang_", "")
             
-            welcome_text = f"""
-🎓 **Student Services Platform**
-
-Hello {user.full_name}! 👋
-
-**What would you like to do?**
-            """
+            # Create or update user with language preference
+            user = await self._get_or_create_user(callback.from_user, language)
             
-            await callback.message.edit_text(
-                welcome_text,
-                reply_markup=get_main_menu(),
-                parse_mode="Markdown"
-            )
+            # Show main menu in selected language
+            await self._show_main_menu_callback(callback, language, user['full_name'])
+            
+            logger.info(f"User {callback.from_user.id} selected language: {language}")
             
         except Exception as e:
-            self._log_with_user_context('error', f"Error in main menu handler: {e}", user_id)
-            await self._handle_user_error(callback)
+            logger.error(f"Error in language selection: {e}")
+            await callback.answer("❌ Error occurred")
+    
+    async def _show_main_menu(self, message: Message, lang: str, name: str):
+        """Show main menu message"""
+        welcome_text = get_text(lang, 'welcome_title') + '\n\n' + get_text(lang, 'welcome_message', name=name)
+        
+        await message.answer(
+            welcome_text,
+            reply_markup=get_main_menu_keyboard(lang),
+            parse_mode="Markdown"
+        )
+    
+    async def _show_main_menu_callback(self, callback: CallbackQuery, lang: str, name: str):
+        """Show main menu via callback"""
+        welcome_text = get_text(lang, 'welcome_title') + '\n\n' + get_text(lang, 'welcome_message', name=name)
+        
+        await callback.message.edit_text(
+            welcome_text,
+            reply_markup=get_main_menu_keyboard(lang),
+            parse_mode="Markdown"
+        )
     
     async def handle_new_order(self, callback: CallbackQuery, state: FSMContext):
         """Handle new order creation"""
-        user_id = str(callback.from_user.id)
         try:
             await callback.answer()
             
-            text = """
-📝 **New Order**
-
-Please select the type of service you need:
-
-📚 **Assignment** - Essays, reports, homework
-📊 **Project** - Research projects, case studies
-🎯 **Presentation** - PowerPoint, slides
-🎨 **Redesign** - Improve existing work
-📄 **Summary** - Summarize documents
-⚡ **Express** - Urgent work (24h or less)
-            """
+            user = await self._get_user_data(callback.from_user)
+            lang = user.get('language', 'en')
+            
+            text = get_text(lang, 'order_flow.service_selection')
             
             await callback.message.edit_text(
                 text,
-                reply_markup=get_service_menu(),
+                reply_markup=get_services_keyboard(lang),
                 parse_mode="Markdown"
             )
             
-            self._log_with_user_context('info', "New order flow started", user_id)
-            
         except Exception as e:
-            self._log_with_user_context('error', f"Error in new order handler: {e}", user_id)
-            await self._handle_user_error(callback)
+            logger.error(f"Error in new order handler: {e}")
+            await callback.answer("❌ Error occurred")
     
     async def handle_service_selection(self, callback: CallbackQuery, state: FSMContext):
         """Handle service type selection"""
-        user_id = str(callback.from_user.id)
         try:
             await callback.answer()
             
+            user = await self._get_user_data(callback.from_user)
+            lang = user.get('language', 'en')
+            
             service_type = callback.data.replace("service_", "")
-            await state.update_data(service_type=service_type)
+            await state.update_data(service_type=service_type, language=lang)
             
-            service_names = {
-                'assignment': 'Assignment',
-                'project': 'Project',
-                'presentation': 'Presentation',
-                'redesign': 'Redesign',
-                'summary': 'Summary',
-                'express': 'Express Service'
-            }
-            
-            service_name = service_names.get(service_type, service_type.title())
-            
-            text = f"""
-📝 **{service_name} Order**
-
-Please enter the **subject/title** of your work:
-
-Example: "Marketing Strategy Analysis" or "Python Programming Assignment"
-            """
+            service_name = get_text(lang, f'services.{service_type}')
+            text = get_text(lang, 'order_flow.subject_prompt', service=service_name)
             
             await callback.message.edit_text(text, parse_mode="Markdown")
-            await state.set_state(OrderStates.waiting_for_subject)
-            
-            self._log_with_user_context('info', f"Service selected: {service_type}", user_id)
+            await state.set_state(OrderStates.subject)
             
         except Exception as e:
-            self._log_with_user_context('error', f"Error in service selection: {e}", user_id)
-            await self._handle_user_error(callback)
+            logger.error(f"Error in service selection: {e}")
+            await callback.answer("❌ Error occurred")
     
     async def handle_subject_input(self, message: Message, state: FSMContext):
         """Handle subject input"""
-        user_id = str(message.from_user.id)
         try:
+            data = await state.get_data()
+            lang = data.get('language', 'en')
+            
             subject = message.text.strip()
             
             if len(subject) < 5:
-                await message.answer("❌ Subject is too short. Please provide a more detailed subject (at least 5 characters).", parse_mode="Markdown")
+                await message.answer(get_text(lang, 'errors.subject_short'))
                 return
             
             await state.update_data(subject=subject)
             
-            text = """
-📋 **Requirements**
-
-Please provide detailed requirements for your work:
-
-Include:
-• Number of pages/words
-• Specific instructions
-• Format requirements (APA, MLA, etc.)
-• Any special requirements
-
-The more details you provide, the better we can serve you!
-            """
-            
+            text = get_text(lang, 'order_flow.requirements_prompt')
             await message.answer(text, parse_mode="Markdown")
-            await state.set_state(OrderStates.waiting_for_requirements)
-            
-            self._log_with_user_context('info', f"Subject entered: {subject[:50]}...", user_id)
+            await state.set_state(OrderStates.requirements)
             
         except Exception as e:
-            self._log_with_user_context('error', f"Error in subject input: {e}", user_id)
-            await self._handle_user_error(message)
+            logger.error(f"Error in subject input: {e}")
+            await message.answer("❌ An error occurred. Please try again.")
     
     async def handle_requirements_input(self, message: Message, state: FSMContext):
         """Handle requirements input"""
-        user_id = str(message.from_user.id)
         try:
+            data = await state.get_data()
+            lang = data.get('language', 'en')
+            
             requirements = message.text.strip()
             
             if len(requirements) < 20:
-                await message.answer("❌ Requirements are too brief. Please provide more detailed requirements (at least 20 characters).", parse_mode="Markdown")
+                await message.answer(get_text(lang, 'errors.requirements_short'))
                 return
             
             await state.update_data(requirements=requirements)
             
-            text = """
-🎓 **Academic Level**
-
-Please select your academic level:
-            """
-            
+            text = get_text(lang, 'order_flow.academic_level_prompt')
             await message.answer(
                 text,
-                reply_markup=get_academic_level_menu(),
+                reply_markup=get_academic_level_keyboard(lang),
                 parse_mode="Markdown"
             )
             
-            self._log_with_user_context('info', f"Requirements entered: {len(requirements)} chars", user_id)
-            
         except Exception as e:
-            self._log_with_user_context('error', f"Error in requirements input: {e}", user_id)
-            await self._handle_user_error(message)
+            logger.error(f"Error in requirements input: {e}")
+            await message.answer("❌ An error occurred. Please try again.")
     
     async def handle_academic_level(self, callback: CallbackQuery, state: FSMContext):
         """Handle academic level selection"""
-        user_id = str(callback.from_user.id)
         try:
             await callback.answer()
+            
+            data = await state.get_data()
+            lang = data.get('language', 'en')
             
             academic_level = callback.data.replace("level_", "")
             await state.update_data(academic_level=academic_level)
             
-            text = """
-⏰ **Deadline**
-
-Please enter your deadline in one of these formats:
-
-📅 **Date & Time:** "2024-12-25 14:30"
-📅 **Date Only:** "2024-12-25" (assumes end of day)
-⏱️ **Hours:** "24 hours" or "3 days"
-
-Examples:
-• "2024-12-25 14:30"
-• "2024-12-25"
-• "48 hours"
-• "3 days"
-            """
-            
+            text = get_text(lang, 'order_flow.deadline_prompt')
             await callback.message.edit_text(text, parse_mode="Markdown")
-            await state.set_state(OrderStates.waiting_for_deadline)
-            
-            self._log_with_user_context('info', f"Academic level selected: {academic_level}", user_id)
+            await state.set_state(OrderStates.deadline)
             
         except Exception as e:
-            self._log_with_user_context('error', f"Error in academic level selection: {e}", user_id)
-            await self._handle_user_error(callback)
+            logger.error(f"Error in academic level selection: {e}")
+            await callback.answer("❌ Error occurred")
     
     async def handle_deadline_input(self, message: Message, state: FSMContext):
         """Handle deadline input"""
-        user_id = str(message.from_user.id)
         try:
+            data = await state.get_data()
+            lang = data.get('language', 'en')
+            
             deadline_text = message.text.strip().lower()
             deadline = None
             
@@ -622,115 +631,89 @@ Examples:
                 
                 # Validate deadline is in the future
                 if deadline <= datetime.now():
-                    await message.answer("❌ Deadline must be in the future. Please enter a valid deadline.", parse_mode="Markdown")
+                    await message.answer(get_text(lang, 'errors.deadline_future'))
                     return
                 
             except (ValueError, IndexError):
-                await message.answer("""
-❌ Invalid deadline format. Please use one of these formats:
-
-📅 **Date & Time:** "2024-12-25 14:30"
-📅 **Date Only:** "2024-12-25"
-⏱️ **Hours:** "24 hours" or "48 hours"
-⏱️ **Days:** "3 days" or "7 days"
-                """, parse_mode="Markdown")
+                await message.answer(get_text(lang, 'errors.deadline_format'))
                 return
             
             await state.update_data(deadline=deadline)
             
-            text = """
-💰 **Currency**
-
-Please select your preferred currency:
-            """
-            
+            text = get_text(lang, 'order_flow.currency_prompt')
             await message.answer(
                 text,
-                reply_markup=get_currency_menu(),
+                reply_markup=get_currency_keyboard(lang),
                 parse_mode="Markdown"
             )
             
-            self._log_with_user_context('info', f"Deadline set: {deadline}", user_id)
-            
         except Exception as e:
-            self._log_with_user_context('error', f"Error in deadline input: {e}", user_id)
-            await self._handle_user_error(message)
+            logger.error(f"Error in deadline input: {e}")
+            await message.answer("❌ An error occurred. Please try again.")
     
     async def handle_currency_selection(self, callback: CallbackQuery, state: FSMContext):
         """Handle currency selection"""
-        user_id = str(callback.from_user.id)
         try:
             await callback.answer()
+            
+            data = await state.get_data()
+            lang = data.get('language', 'en')
             
             currency = callback.data.replace("currency_", "")
             await state.update_data(currency=currency)
             
             # Calculate pricing
-            data = await state.get_data()
-            
-            with DatabaseManager.get_session() as db:
-                user = await self._get_or_create_user(callback.from_user)
+            try:
+                # Calculate days until deadline
+                days_until_deadline = max(1, (data['deadline'] - datetime.now()).days)
                 
-                try:
-                    pricing = self.pricing_service.calculate_price(
-                        service_type=data['service_type'],
-                        academic_level=data['academic_level'],
-                        deadline=data['deadline'],
-                        currency=currency,
-                        pages=1  # Default, can be extracted from requirements
-                    )
-                    
-                    await state.update_data(pricing=pricing)
-                    
-                    # Show order summary
-                    requirements_preview = data['requirements'][:200]
-                    if len(data['requirements']) > 200:
-                        requirements_preview += "..."
-                    
-                    summary_text = f"""
-📋 **Order Summary**
-
-📝 **Service:** {data['service_type'].title()}
-📚 **Subject:** {data['subject']}
-🎓 **Level:** {data['academic_level'].replace('_', ' ').title()}
-⏰ **Deadline:** {data['deadline'].strftime('%Y-%m-%d %H:%M')}
-
-💰 **Pricing:**
-• Base Price: {pricing['base_price']:.2f} {currency}
-• Academic Level: {pricing['academic_multiplier']:.1f}x
-• Urgency: {pricing['urgency_multiplier']:.1f}x
-• **Total: {pricing['total_price']:.2f} {currency}**
-
-📝 **Requirements:**
-{requirements_preview}
-
-Do you want to add any special notes? (Optional)
-Send "skip" to continue without notes.
-                    """
-                    
-                    await callback.message.edit_text(summary_text, parse_mode="Markdown")
-                    await state.set_state(OrderStates.waiting_for_notes)
-                    
-                    self._log_with_user_context('info', f"Currency selected: {currency}, price: {pricing['total_price']}", user_id)
-                    
-                except Exception as e:
-                    self._log_with_user_context('error', f"Error calculating pricing: {e}", user_id)
-                    await self._handle_user_error(callback, "❌ Error calculating price. Please try again.")
+                pricing = self.pricing_service.calculate_price(
+                    service_type=data['service_type'],
+                    academic_level=data['academic_level'],
+                    days_until_deadline=days_until_deadline,
+                    currency=currency
+                )
+                
+                await state.update_data(pricing=pricing)
+                
+                # Show order summary
+                service_name = get_text(lang, f"services.{data['service_type']}")
+                level_name = get_text(lang, f"academic_levels.{data['academic_level']}")
+                
+                summary_text = get_text(lang, 'order_flow.notes_prompt',
+                    service=service_name,
+                    subject=data['subject'],
+                    level=level_name,
+                    deadline=data['deadline'].strftime('%Y-%m-%d %H:%M'),
+                    base_price=pricing['base_price'],
+                    currency=currency,
+                    academic_multiplier=pricing['academic_multiplier'],
+                    urgency_multiplier=pricing['urgency_multiplier'],
+                    total_price=pricing['total_price']
+                )
+                
+                await callback.message.edit_text(summary_text, parse_mode="Markdown")
+                await state.set_state(OrderStates.special_notes)
+                
+            except Exception as e:
+                logger.error(f"Error calculating pricing: {e}")
+                await callback.answer("❌ Error calculating price. Please try again.")
                 
         except Exception as e:
-            self._log_with_user_context('error', f"Error in currency selection: {e}", user_id)
-            await self._handle_user_error(callback)
+            logger.error(f"Error in currency selection: {e}")
+            await callback.answer("❌ Error occurred")
 
     async def handle_special_notes(self, message: Message, state: FSMContext):
         """Handle special notes input"""
-        user_id = str(message.from_user.id)
         try:
+            data = await state.get_data()
+            lang = data.get('language', 'en')
+            
             notes = message.text.strip() if message.text.strip().lower() != "skip" else None
             await state.update_data(special_notes=notes)
             
             # Create order
-            data = await state.get_data()
-            user = await self._get_or_create_user(message.from_user)
+            user = await self._get_user_data(message.from_user)
             
             with DatabaseManager.get_session() as db:
                 try:
@@ -741,7 +724,7 @@ Send "skip" to continue without notes.
                     # Create order
                     order = Order(
                         order_number=order_number,
-                        user_id=user.id,
+                        user_id=user['id'],
                         service_type=data['service_type'],
                         subject=data['subject'],
                         requirements=data['requirements'],
@@ -761,312 +744,128 @@ Send "skip" to continue without notes.
                     db.refresh(order)
                     
                     # Show payment options
-                    payment_text = f"""
-✅ **Order Created Successfully!**
-
-📋 **Order #{order.order_number}**
-💰 **Total: {order.total_amount:.2f} {order.currency}**
-
-Please select your payment method:
-                    """
+                    payment_text = get_text(lang, 'order_flow.order_created',
+                        order_number=order.order_number,
+                        total=order.total_amount,
+                        currency=order.currency
+                    )
                     
                     await message.answer(
                         payment_text,
-                        reply_markup=get_payment_method_menu(order.id),
+                        reply_markup=get_payment_keyboard(lang),
                         parse_mode="Markdown"
                     )
                     
                     await state.clear()
                     
-                    # Send notification
-                    await self._send_notification(
-                        order,
-                        f"New Order Created - #{order.order_number}",
-                        f"A new order has been created and is awaiting payment."
-                    )
-                    
-                    self._log_with_user_context('info', f"Order {order.order_number} created successfully", user_id)
+                    logger.info(f"Order {order.order_number} created successfully")
                     
                 except Exception as e:
-                    self._log_with_user_context('error', f"Error creating order: {e}", user_id)
-                    await self._handle_user_error(message, "❌ Error creating order. Please try again.")
+                    logger.error(f"Error creating order: {e}")
+                    await message.answer(get_text(lang, 'errors.general'))
                 
         except Exception as e:
-            self._log_with_user_context('error', f"Error in special notes handler: {e}", user_id)
-            await self._handle_user_error(message)
+            logger.error(f"Error in special notes handler: {e}")
+            await message.answer("❌ An error occurred. Please try again.")
     
-    async def handle_payment_method(self, callback: CallbackQuery, state: FSMContext):
-        """Handle payment method selection - delegated to PaymentService"""
-        user_id = str(callback.from_user.id)
+    async def handle_payment_method(self, callback: CallbackQuery):
+        """Handle payment method selection"""
         try:
             await callback.answer()
             
-            payment_data = callback.data.replace("payment_", "").split("_")
-            method = payment_data[0]
-            order_id = int(payment_data[1])
+            user = await self._get_user_data(callback.from_user)
+            lang = user.get('language', 'en')
             
-            with DatabaseManager.get_session() as db:
-                order = db.query(Order).filter(Order.id == order_id).first()
-                
-                if not order:
-                    await self._handle_user_error(callback, "❌ Order not found.")
-                    return
-                
-                # Delegate to payment service for processing
-                result = await self._process_payment_method(method, order, callback, db)
-                
-                if result['success']:
-                    self._log_with_user_context('info', f"Payment method {method} processed for order {order.order_number}", user_id)
-                else:
-                    self._log_with_user_context('error', f"Payment method {method} failed for order {order.order_number}: {result.get('error')}", user_id)
-                    await self._handle_user_error(callback, result.get('error', "❌ Payment processing failed."))
-                
-        except Exception as e:
-            self._log_with_user_context('error', f"Error in payment method handler: {e}", user_id)
-            await self._handle_user_error(callback)
-    
-    async def _process_payment_method(self, method: str, order: Order, callback: CallbackQuery, db: Session) -> Dict[str, Any]:
-        """Process payment method - separated from UI logic"""
-        try:
+            method = callback.data.replace("pay_", "")
+            
             if method == "stripe":
-                # Create Stripe checkout session
-                session_data = await self.payment_service.create_stripe_session(order, db)
-                
-                payment_text = f"""
-💳 **Credit/Debit Card Payment**
+                if lang == 'ar':
+                    text = """💳 **الدفع بالبطاقة الائتمانية**
 
-Order: #{order.order_number}
-Amount: {order.total_amount:.2f} {order.currency}
+سيتم توجيهك إلى صفحة الدفع الآمنة عبر Stripe.
 
-Click the button below to pay securely with Stripe:
-                """
-                
-                keyboard = InlineKeyboardBuilder()
-                keyboard.button(text="💳 Pay Now", url=session_data['session_url'])
-                keyboard.button(text="🔙 Back", callback_data=f"order_view_{order.id}")
-                keyboard.adjust(1)
-                
-                await callback.message.edit_text(
-                    payment_text,
-                    reply_markup=keyboard.as_markup(),
-                    parse_mode="Markdown"
-                )
-                
-                return {'success': True}
-                
+هذه الميزة قيد الإعداد حالياً. يرجى التواصل مع الدعم للمساعدة في الدفع."""
+                else:
+                    text = """💳 **Credit/Debit Card Payment**
+
+You will be redirected to our secure Stripe payment page.
+
+This feature is currently being set up. Please contact support for payment assistance."""
+                    
             elif method == "bank":
-                # Show bank transfer details
-                bank_details = self.payment_service.get_payment_methods()['bank_transfer']['bank_details']
-                
-                bank_text = f"""
-🏦 **Bank Transfer Payment**
+                if lang == 'ar':
+                    text = """🏦 **الدفع عبر التحويل البنكي**
 
-Order: #{order.order_number}
-Amount: {order.total_amount:.2f} {order.currency}
+**تفاصيل البنك:**
+🏛️ البنك: بنك الإمارات دبي الوطني
+👤 اسم الحساب: Student Services
+🔢 رقم الحساب: 1234567890
+🌐 IBAN: AE07 0331 2345 6789 0123 456
+📧 SWIFT: EBILAEAD
+
+**التعليمات:**
+1. حول المبلغ الدقيق إلى الحساب أعلاه
+2. أرسل لنا إيصال التحويل عبر الدعم
+3. سنتحقق من دفعتك خلال 24 ساعة
+
+⚠️ **مهم:** اذكر رقم طلبك في مرجع التحويل"""
+                else:
+                    text = """🏦 **Bank Transfer Payment**
 
 **Bank Details:**
-🏛️ Bank: {bank_details['bank_name']}
-👤 Account Name: {bank_details['account_name']}
-🔢 Account Number: {bank_details['account_number']}
-🌐 IBAN: {bank_details['iban']}
-📧 SWIFT: {bank_details['swift']}
+🏛️ Bank: Emirates NBD
+👤 Account Name: Student Services
+🔢 Account Number: 1234567890
+🌐 IBAN: AE07 0331 2345 6789 0123 456
+📧 SWIFT: EBILAEAD
 
 **Instructions:**
 1. Transfer the exact amount to the above account
-2. Upload your receipt using the button below
+2. Send us the receipt via support
 3. We'll verify your payment within 24 hours
 
-⚠️ **Important:** Include order number #{order.order_number} in the transfer reference
-                """
-                
-                keyboard = InlineKeyboardBuilder()
-                keyboard.button(text="📎 Upload Receipt", callback_data=f"upload_receipt_{order.id}")
-                keyboard.button(text="🔙 Back", callback_data=f"order_view_{order.id}")
-                keyboard.adjust(1)
-                
-                await callback.message.edit_text(
-                    bank_text,
-                    reply_markup=keyboard.as_markup(),
-                    parse_mode="Markdown"
-                )
-                
-                return {'success': True}
-            
+⚠️ **Important:** Include your order number in the transfer reference"""
             else:
-                return {'success': False, 'error': f"Unknown payment method: {method}"}
-                
-        except Exception as e:
-            return {'success': False, 'error': f"Payment processing error: {str(e)}"}
-    
-    async def handle_upload_receipt(self, callback: CallbackQuery, state: FSMContext):
-        """Handle receipt upload initiation"""
-        user_id = str(callback.from_user.id)
-        try:
-            await callback.answer()
+                text = "❌ Unknown payment method selected."
             
-            order_id = int(callback.data.replace("upload_receipt_", ""))
-            await state.update_data(order_id=order_id)
-            await state.set_state(PaymentStates.waiting_for_receipt)
-            
-            text = """
-📎 **Upload Payment Receipt**
-
-Please upload your bank transfer receipt or screenshot.
-
-**Supported formats:**
-• PDF documents
-• Images (JPG, PNG)
-• Screenshots
-
-**File size limit:** 20MB
-            """
-            
-            await callback.message.edit_text(text, parse_mode="Markdown")
-            
-            self._log_with_user_context('info', f"Receipt upload initiated for order {order_id}", user_id)
-            
-        except Exception as e:
-            self._log_with_user_context('error', f"Error in upload receipt handler: {e}", user_id)
-            await self._handle_user_error(callback)
-    
-    async def handle_file_upload(self, message: Message, state: FSMContext):
-        """Handle file uploads with security checks"""
-        user_id = str(message.from_user.id)
-        try:
-            # Check if we're expecting a bank receipt
-            current_state = await state.get_state()
-            
-            if current_state == PaymentStates.waiting_for_receipt:
-                await self.handle_bank_receipt(message, state)
-                return
-            
-            # General file upload (requirements, etc.)
-            if not message.document:
-                await message.answer("❌ Please send a valid document file.", parse_mode="Markdown")
-                return
-            
-            # File size check (20MB limit)
-            max_size = 20 * 1024 * 1024  # 20MB
-            if message.document.file_size > max_size:
-                await message.answer("❌ File too large. Maximum size is 20MB.", parse_mode="Markdown")
-                return
-            
-            # Get file info and download securely
-            file_info = await self.bot.get_file(message.document.file_id)
-            safe_filename = FileHandler.sanitize_filename(message.document.file_name)
-            file_path = FileHandler.get_safe_upload_path("static/uploads", safe_filename)
-            
-            # Download file
-            await self.bot.download_file(file_info.file_path, file_path)
-            
-            await message.answer(
-                f"✅ File uploaded successfully!\n📎 {message.document.file_name}",
+            await callback.message.edit_text(
+                text,
+                reply_markup=get_main_menu_keyboard(lang),
                 parse_mode="Markdown"
             )
             
-            self._log_with_user_context('info', f"File uploaded: {safe_filename}", user_id)
-            
         except Exception as e:
-            self._log_with_user_context('error', f"Error handling file upload: {e}", user_id)
-            await self._handle_user_error(message, "❌ Error uploading file. Please try again.")
-    
-    async def handle_bank_receipt(self, message: Message, state: FSMContext):
-        """Handle bank receipt upload with enhanced security"""
-        user_id = str(message.from_user.id)
-        try:
-            data = await state.get_data()
-            order_id = data.get('order_id')
-            
-            if not order_id:
-                await message.answer("❌ No order found. Please start over.", parse_mode="Markdown")
-                await state.clear()
-                return
-            
-            if not message.document:
-                await message.answer("❌ Please send a valid document file.", parse_mode="Markdown")
-                return
-            
-            # File size check (20MB limit)
-            max_size = 20 * 1024 * 1024  # 20MB
-            if message.document.file_size > max_size:
-                await message.answer("❌ File too large. Maximum size is 20MB.", parse_mode="Markdown")
-                return
-            
-            with DatabaseManager.get_session() as db:
-                order = db.query(Order).filter(Order.id == order_id).first()
-                
-                if not order:
-                    await message.answer("❌ Order not found.", parse_mode="Markdown")
-                    await state.clear()
-                    return
-                
-                try:
-                    # Download receipt file securely
-                    file_info = await self.bot.get_file(message.document.file_id)
-                    safe_filename = FileHandler.sanitize_filename(message.document.file_name)
-                    receipt_filename = f"{order.order_number}_{safe_filename}"
-                    file_path = FileHandler.get_safe_upload_path("static/uploads", receipt_filename, "receipts")
-                    
-                    # Download file
-                    await self.bot.download_file(file_info.file_path, file_path)
-                    
-                    # Process bank transfer
-                    result = await self.payment_service.process_bank_transfer(order, file_path, db)
-                    
-                    await message.answer(
-                        f"""
-✅ **Receipt Uploaded Successfully!**
-
-📋 Order: #{order.order_number}
-📎 File: {message.document.file_name}
-
-{result['message']}
-
-We'll notify you once the payment is verified.
-                        """,
-                        parse_mode="Markdown"
-                    )
-                    
-                    await state.clear()
-                    
-                    # Send notification to admin
-                    await self._send_notification(
-                        order,
-                        f"Payment Receipt Uploaded - #{order.order_number}",
-                        f"A payment receipt has been uploaded for order #{order.order_number}. Please verify the payment."
-                    )
-                    
-                    self._log_with_user_context('info', f"Bank receipt uploaded for order {order.order_number}", user_id)
-                    
-                except Exception as e:
-                    self._log_with_user_context('error', f"Error processing bank receipt: {e}", user_id)
-                    await self._handle_user_error(message, "❌ Error processing receipt. Please try again.")
-                
-        except Exception as e:
-            self._log_with_user_context('error', f"Error in bank receipt handler: {e}", user_id)
-            await self._handle_user_error(message)
+            logger.error(f"Error in payment method handler: {e}")
+            await callback.answer("❌ Error occurred")
     
     async def handle_my_orders(self, callback: CallbackQuery):
         """Handle my orders view"""
-        user_id = str(callback.from_user.id)
         try:
             await callback.answer()
             
-            user = await self._get_or_create_user(callback.from_user)
+            user = await self._get_user_data(callback.from_user)
+            lang = user.get('language', 'en')
             
             with DatabaseManager.get_session() as db:
-                orders = db.query(Order).filter(Order.user_id == user.id).order_by(Order.created_at.desc()).limit(5).all()
+                orders = db.query(Order).filter(Order.user_id == user['id']).order_by(Order.created_at.desc()).limit(5).all()
                 
                 if not orders:
+                    if lang == 'ar':
+                        text = "📋 **طلباتك**\n\nلم تقم بوضع أي طلبات بعد.\n\nانقر على 'طلب جديد' للبدء!"
+                    else:
+                        text = "📋 **Your Orders**\n\nYou haven't placed any orders yet.\n\nClick 'New Order' to get started!"
+                        
                     await callback.message.edit_text(
-                        "📋 **Your Orders**\n\nYou haven't placed any orders yet.\n\nClick 'New Order' to get started!",
-                        reply_markup=get_main_menu(),
+                        text,
+                        reply_markup=get_main_menu_keyboard(lang),
                         parse_mode="Markdown"
                     )
                     return
                 
-                orders_text = "📋 **Your Recent Orders:**\n\n"
-                keyboard = InlineKeyboardBuilder()
+                if lang == 'ar':
+                    orders_text = "📋 **طلباتك الأخيرة:**\n\n"
+                else:
+                    orders_text = "📋 **Your Recent Orders:**\n\n"
                 
                 for order in orders:
                     status_emoji = {
@@ -1079,39 +878,48 @@ We'll notify you once the payment is verified.
                     }.get(order.status, '❓')
                     
                     orders_text += f"{status_emoji} **#{order.order_number}** - {order.subject[:30]}...\n"
-                    keyboard.button(
-                        text=f"📋 {order.order_number}",
-                        callback_data=f"order_view_{order.id}"
-                    )
-                
-                keyboard.button(text="📝 New Order", callback_data="new_order")
-                keyboard.button(text="🔙 Main Menu", callback_data="main_menu")
-                keyboard.adjust(2)
                 
                 await callback.message.edit_text(
                     orders_text,
-                    reply_markup=keyboard.as_markup(),
+                    reply_markup=get_main_menu_keyboard(lang),
                     parse_mode="Markdown"
                 )
                 
-                self._log_with_user_context('info', f"Orders list viewed, count: {len(orders)}", user_id)
-                
         except Exception as e:
-            self._log_with_user_context('error', f"Error in my orders handler: {e}", user_id)
-            await self._handle_user_error(callback)
+            logger.error(f"Error in my orders handler: {e}")
+            await callback.answer("❌ Error occurred")
     
-    async def handle_support(self, callback: CallbackQuery):
+    async def handle_contact_support(self, callback: CallbackQuery):
         """Handle support request"""
-        user_id = str(callback.from_user.id)
         try:
             await callback.answer()
             
-            support_email = settings.support_email or 'support@example.com'
-            support_text = f"""
-🆘 **Support & Help**
+            user = await self._get_user_data(callback.from_user)
+            lang = user.get('language', 'en')
+            
+            if lang == 'ar':
+                support_text = """🆘 **الدعم والمساعدة**
+
+**معلومات التواصل:**
+📧 البريد الإلكتروني: support@studentservices.com
+💬 تليجرام: متاح 24/7
+
+**المشاكل الشائعة:**
+• مشاكل الدفع
+• تعديل الطلبات
+• الدعم التقني
+• استفسارات عامة
+
+**وقت الاستجابة:**
+🕐 عادة خلال 2-4 ساعات
+⚡ المشاكل العاجلة: تواصل فوراً
+
+كيف يمكننا مساعدتك اليوم؟"""
+            else:
+                support_text = """🆘 **Support & Help**
 
 **Contact Information:**
-📧 Email: {support_email}
+📧 Email: support@studentservices.com
 💬 Telegram: Available 24/7
 
 **Common Issues:**
@@ -1124,102 +932,287 @@ We'll notify you once the payment is verified.
 🕐 Usually within 2-4 hours
 ⚡ Urgent issues: Contact immediately
 
-How can we help you today?
-            """
-            
-            keyboard = InlineKeyboardBuilder()
-            keyboard.button(text="📧 Send Email", url=f"mailto:{support_email}")
-            keyboard.button(text="🔙 Main Menu", callback_data="main_menu")
-            keyboard.adjust(1)
+How can we help you today?"""
             
             await callback.message.edit_text(
                 support_text,
-                reply_markup=keyboard.as_markup(),
+                reply_markup=get_main_menu_keyboard(lang),
                 parse_mode="Markdown"
             )
             
-            self._log_with_user_context('info', "Support page accessed", user_id)
-            
         except Exception as e:
-            self._log_with_user_context('error', f"Error in support handler: {e}", user_id)
-            await self._handle_user_error(callback)
+            logger.error(f"Error in support handler: {e}")
+            await callback.answer("❌ Error occurred")
     
-    async def handle_feedback(self, callback: CallbackQuery, state: FSMContext):
-        """Handle feedback initiation"""
-        user_id = str(callback.from_user.id)
+    async def handle_help(self, callback: CallbackQuery):
+        """Handle help request"""
         try:
             await callback.answer()
             
-            text = """
-⭐ **Feedback**
-
-We value your feedback! Please rate your experience:
-
-**Rating Scale:**
-⭐ 1 - Poor
-⭐⭐ 2 - Fair  
-⭐⭐⭐ 3 - Good
-⭐⭐⭐⭐ 4 - Very Good
-⭐⭐⭐⭐⭐ 5 - Excellent
-
-Please send a number from 1 to 5:
-            """
+            user = await self._get_user_data(callback.from_user)
+            lang = user.get('language', 'en')
             
-            await callback.message.edit_text(text, parse_mode="Markdown")
-            await state.set_state(FeedbackStates.waiting_for_rating)
+            if lang == 'ar':
+                help_text = """ℹ️ **المساعدة والمعلومات**
+
+**كيفية وضع طلب:**
+1️⃣ انقر على "📝 طلب جديد"
+2️⃣ اختر نوع الخدمة
+3️⃣ املأ المتطلبات
+4️⃣ اختر طريقة الدفع
+5️⃣ أكمل الدفع
+
+**الخدمات المتاحة:**
+📝 الواجبات والمقالات
+💻 المشاريع التقنية
+📊 العروض التقديمية
+🔄 خدمات إعادة التصميم
+📚 ملخصات المقررات
+⚡ الخدمات السريعة (24 ساعة)
+
+**طرق الدفع:**
+💳 البطاقة الائتمانية (Stripe)
+🏦 التحويل البنكي
+
+تحتاج مساعدة أكثر؟ تواصل مع فريق الدعم!"""
+            else:
+                help_text = """ℹ️ **Help & Information**
+
+**How to place an order:**
+1️⃣ Click "📝 New Order"
+2️⃣ Select service type
+3️⃣ Fill in requirements
+4️⃣ Choose payment method
+5️⃣ Complete payment
+
+**Available Services:**
+📝 Assignments & Essays
+💻 IT Projects
+📊 Presentations
+🔄 Redesign Services
+📚 Course Summaries
+⚡ Express Services (24h)
+
+**Payment Methods:**
+💳 Credit/Debit Card (Stripe)
+🏦 Bank Transfer
+
+Need more help? Contact our support team!"""
             
-            self._log_with_user_context('info', "Feedback process started", user_id)
+            await callback.message.edit_text(
+                help_text,
+                reply_markup=get_main_menu_keyboard(lang),
+                parse_mode="Markdown"
+            )
             
         except Exception as e:
-            self._log_with_user_context('error', f"Error in feedback handler: {e}", user_id)
-            await self._handle_user_error(callback)
+            logger.error(f"Error in help handler: {e}")
+            await callback.answer("❌ Error occurred")
+    
+    async def cmd_help(self, message: Message):
+        """Handle /help command"""
+        try:
+            user = await self._get_user_data(message.from_user)
+            lang = user.get('language', 'en') if user else 'en'
+            
+            if lang == 'ar':
+                help_text = """🆘 **المساعدة والدعم**
+
+**الأوامر المتاحة:**
+/start - بدء البوت وعرض القائمة الرئيسية
+/orders - عرض طلباتك
+/cancel - إلغاء العملية الحالية
+/help - عرض رسالة المساعدة هذه
+
+**كيفية وضع طلب:**
+1️⃣ انقر على "📝 طلب جديد"
+2️⃣ اختر نوع الخدمة
+3️⃣ املأ المتطلبات
+4️⃣ اختر طريقة الدفع
+5️⃣ أكمل الدفع
+
+**طرق الدفع:**
+💳 البطاقة الائتمانية (فوري)
+🏦 التحويل البنكي (تحقق خلال 24 ساعة)
+
+**الدعم:**
+📧 البريد الإلكتروني: support@studentservices.com
+
+**ساعات العمل:**
+🕐 دعم متاح 24/7"""
+            else:
+                help_text = """🆘 **Help & Support**
+
+**Available Commands:**
+/start - Start the bot and show main menu
+/orders - View your orders
+/cancel - Cancel current operation
+/help - Show this help message
+
+**How to place an order:**
+1️⃣ Click "📝 New Order"
+2️⃣ Select service type
+3️⃣ Fill in requirements
+4️⃣ Choose payment method
+5️⃣ Complete payment
+
+**Payment Methods:**
+💳 Credit/Debit Card (Instant)
+🏦 Bank Transfer (24h verification)
+
+**Support:**
+📧 Email: support@studentservices.com
+
+**Business Hours:**
+🕐 24/7 Support Available"""
+            
+            await message.answer(help_text, parse_mode="Markdown")
+            
+        except Exception as e:
+            logger.error(f"Error in help command: {e}")
+            await message.answer("❌ An error occurred. Please try again.")
+
+    async def cmd_orders(self, message: Message):
+        """Handle /orders command"""
+        try:
+            user = await self._get_user_data(message.from_user)
+            
+            if not user:
+                await message.answer("Please start the bot first with /start")
+                return
+                
+            lang = user.get('language', 'en')
+            
+            with DatabaseManager.get_session() as db:
+                orders = db.query(Order).filter(Order.user_id == user['id']).order_by(Order.created_at.desc()).limit(10).all()
+                
+                if not orders:
+                    if lang == 'ar':
+                        text = "📋 **طلباتك**\n\nلم تقم بوضع أي طلبات بعد.\n\nانقر على 'طلب جديد' للبدء!"
+                    else:
+                        text = "📋 **Your Orders**\n\nYou haven't placed any orders yet.\n\nClick 'New Order' to get started!"
+                        
+                    await message.answer(
+                        text,
+                        reply_markup=get_main_menu_keyboard(lang),
+                        parse_mode="Markdown"
+                    )
+                    return
+                
+                if lang == 'ar':
+                    orders_text = "📋 **طلباتك الأخيرة:**\n\n"
+                else:
+                    orders_text = "📋 **Your Recent Orders:**\n\n"
+                
+                for order in orders:
+                    status_emoji = {
+                        'pending': '⏳',
+                        'confirmed': '✅',
+                        'in_progress': '🔄',
+                        'delivered': '📦',
+                        'completed': '✅',
+                        'cancelled': '❌'
+                    }.get(order.status, '❓')
+                    
+                    orders_text += f"""
+{status_emoji} **Order #{order.order_number}**
+📝 {order.service_type.title()} - {order.subject}
+💰 {order.total_amount} {order.currency}
+📅 Created: {order.created_at.strftime('%Y-%m-%d %H:%M')}
+
+"""
+                
+                await message.answer(
+                    orders_text,
+                    reply_markup=get_main_menu_keyboard(lang),
+                    parse_mode="Markdown"
+                )
+                
+        except Exception as e:
+            logger.error(f"Error in orders command: {e}")
+            await message.answer("❌ Error fetching your orders. Please try again.")
+    
+    async def cmd_cancel(self, message: Message, state: FSMContext):
+        """Handle /cancel command"""
+        try:
+            user = await self._get_user_data(message.from_user)
+            lang = user.get('language', 'en') if user else 'en'
+            
+            await state.clear()
+            
+            if lang == 'ar':
+                text = "❌ **تم إلغاء العملية**\n\nالعودة إلى القائمة الرئيسية..."
+            else:
+                text = "❌ **Operation Cancelled**\n\nReturning to main menu..."
+                
+            await message.answer(
+                text,
+                reply_markup=get_main_menu_keyboard(lang),
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logger.error(f"Error in cancel command: {e}")
+            await message.answer("❌ An error occurred.")
     
     async def handle_feedback_rating(self, message: Message, state: FSMContext):
         """Handle feedback rating input"""
-        user_id = str(message.from_user.id)
         try:
+            user = await self._get_user_data(message.from_user)
+            lang = user.get('language', 'en')
+            
             try:
                 rating = int(message.text.strip())
                 if rating < 1 or rating > 5:
                     raise ValueError("Rating out of range")
             except ValueError:
-                await message.answer("❌ Please send a valid rating from 1 to 5.", parse_mode="Markdown")
+                if lang == 'ar':
+                    await message.answer("❌ يرجى إرسال تقييم صحيح من 1 إلى 5.")
+                else:
+                    await message.answer("❌ Please send a valid rating from 1 to 5.")
                 return
             
             await state.update_data(rating=rating)
             
             stars = "⭐" * rating
-            text = f"""
+            
+            if lang == 'ar':
+                text = f"""
+{stars} **شكراً لك على تقييمك!**
+
+هل تريد إضافة أي تعليقات؟ (اختياري)
+
+أرسل تعليقاتك أو اكتب "skip" للانتهاء:
+                """
+            else:
+                text = f"""
 {stars} **Thank you for your rating!**
 
 Would you like to add any comments? (Optional)
 
 Send your comments or type "skip" to finish:
-            """
+                """
             
             await message.answer(text, parse_mode="Markdown")
-            await state.set_state(FeedbackStates.waiting_for_comment)
-            
-            self._log_with_user_context('info', f"Feedback rating: {rating}/5", user_id)
+            await state.set_state(FeedbackStates.comment)
             
         except Exception as e:
-            self._log_with_user_context('error', f"Error in feedback rating handler: {e}", user_id)
-            await self._handle_user_error(message)
+            logger.error(f"Error in feedback rating handler: {e}")
+            await message.answer("❌ An error occurred. Please try again.")
     
     async def handle_feedback_comment(self, message: Message, state: FSMContext):
         """Handle feedback comment input"""
-        user_id = str(message.from_user.id)
         try:
+            user = await self._get_user_data(message.from_user)
+            lang = user.get('language', 'en')
+            
             comment = message.text.strip() if message.text.strip().lower() != "skip" else None
             data = await state.get_data()
-            
-            user = await self._get_or_create_user(message.from_user)
             
             with DatabaseManager.get_session() as db:
                 try:
                     # Create feedback record
                     feedback = Feedback(
-                        user_id=user.id,
+                        user_id=user['id'],
                         rating=data['rating'],
                         comment=comment,
                         created_at=datetime.utcnow()
@@ -1230,67 +1223,130 @@ Send your comments or type "skip" to finish:
                     
                     stars = "⭐" * data['rating']
                     
-                    await message.answer(
-                        f"""
+                    if lang == 'ar':
+                        text = f"""
+✅ **تم إرسال التقييم!**
+
+{stars} التقييم: {data['rating']}/5
+
+شكراً لك لمساعدتنا في تحسين خدمتنا!
+                        """
+                    else:
+                        text = f"""
 ✅ **Feedback Submitted!**
 
 {stars} Rating: {data['rating']}/5
 
 Thank you for helping us improve our service!
-                        """,
-                        reply_markup=get_main_menu(),
+                        """
+                    
+                    await message.answer(
+                        text,
+                        reply_markup=get_main_menu_keyboard(lang),
                         parse_mode="Markdown"
                     )
                     
                     await state.clear()
                     
-                    self._log_with_user_context('info', f"Feedback submitted: {data['rating']}/5", user_id)
-                    
                 except Exception as e:
-                    self._log_with_user_context('error', f"Error saving feedback: {e}", user_id)
-                    await self._handle_user_error(message, "❌ Error saving feedback. Please try again.")
+                    logger.error(f"Error saving feedback: {e}")
+                    await message.answer(get_text(lang, 'errors.general'))
                 
         except Exception as e:
-            self._log_with_user_context('error', f"Error in feedback comment handler: {e}", user_id)
-            await self._handle_user_error(message)
+            logger.error(f"Error in feedback comment handler: {e}")
+            await message.answer("❌ An error occurred. Please try again.")
 
-    async def handle_unknown_callback(self, callback: CallbackQuery):
-        """Fallback handler for unexpected callbacks"""
-        user_id = str(callback.from_user.id)
+    async def handle_file_upload(self, message: Message):
+        """Handle file uploads"""
         try:
-            await callback.answer("❌ Unknown action")
+            user = await self._get_user_data(message.from_user)
+            lang = user.get('language', 'en') if user else 'en'
             
-            text = """
-❓ **Unknown Action**
-
-Sorry, I didn't understand that action. 
-Let's return to the main menu:
-            """
+            if not message.document:
+                if lang == 'ar':
+                    await message.answer("❌ يرجى إرسال ملف صحيح.")
+                else:
+                    await message.answer("❌ Please send a valid document file.")
+                return
             
-            await callback.message.edit_text(
-                text,
-                reply_markup=get_main_menu(),
-                parse_mode="Markdown"
-            )
+            # File size check (20MB limit)
+            max_size = 20 * 1024 * 1024  # 20MB
+            if message.document.file_size > max_size:
+                if lang == 'ar':
+                    await message.answer("❌ الملف كبير جداً. الحد الأقصى 20 ميجابايت.")
+                else:
+                    await message.answer("❌ File too large. Maximum size is 20MB.")
+                return
             
-            self._log_with_user_context('warning', f"Unknown callback: {callback.data}", user_id)
+            if lang == 'ar':
+                text = f"✅ تم استلام الملف: {message.document.file_name}\n\nمعالجة رفع الملفات قيد الإعداد. يرجى التواصل مع الدعم لإرسال الملفات."
+            else:
+                text = f"✅ File received: {message.document.file_name}\n\nFile upload processing is being set up. Please contact support for file submissions."
+            
+            await message.answer(text, parse_mode="Markdown")
             
         except Exception as e:
-            self._log_with_user_context('error', f"Error in unknown callback handler: {e}", user_id)
+            logger.error(f"Error handling file upload: {e}")
+            await message.answer("❌ Error processing file. Please try again.")
     
-    async def _get_or_create_user(self, telegram_user) -> User:
-        """Get or create user from Telegram user data with proper session management"""
+    async def _get_user_if_exists(self, telegram_user) -> Optional[Dict[str, Any]]:
+        """Check if user exists and return user data"""
+        try:
+            with DatabaseManager.get_session() as db:
+                user = db.query(User).filter(User.telegram_id == str(telegram_user.id)).first()
+                
+                if user:
+                    return {
+                        'id': user.id,
+                        'telegram_id': user.telegram_id,
+                        'full_name': user.full_name,
+                        'telegram_username': user.telegram_username,
+                        'language': user.language
+                    }
+                return None
+        except Exception as e:
+            logger.error(f"Error checking user existence: {e}")
+            return None
+    
+    async def _get_user_data(self, telegram_user) -> Dict[str, Any]:
+        """Get existing user data"""
+        with DatabaseManager.get_session() as db:
+            user = db.query(User).filter(User.telegram_id == str(telegram_user.id)).first()
+            
+            if user:
+                return {
+                    'id': user.id,
+                    'telegram_id': user.telegram_id,
+                    'full_name': user.full_name,
+                    'telegram_username': user.telegram_username,
+                    'language': user.language
+                }
+            else:
+                # Create user with default language if not exists
+                return await self._get_or_create_user(telegram_user, 'en')
+    
+    async def _get_or_create_user(self, telegram_user, language: str = 'en') -> Dict[str, Any]:
+        """Get or create user from Telegram user data"""
         with DatabaseManager.get_session() as db:
             user = db.query(User).filter(User.telegram_id == str(telegram_user.id)).first()
             
             if not user:
                 # Create new user
                 full_name = f"{telegram_user.first_name} {telegram_user.last_name or ''}".strip()
+                
+                # Map currency based on language/region
+                currency_map = {
+                    'ar': 'AED',  # Arabic users default to AED
+                    'en': 'AED'   # AED as main currency for all
+                }
+                
                 user = User(
                     telegram_id=str(telegram_user.id),
                     telegram_username=telegram_user.username,
                     full_name=full_name,
-                    language=telegram_user.language_code or "en",
+                    language=language,
+                    country="UAE" if language == 'ar' else "OTH",  # 3-character limit fix
+                    currency=currency_map.get(language, 'AED'),
                     created_at=datetime.utcnow(),
                     last_activity=datetime.utcnow()
                 )
@@ -1298,64 +1354,37 @@ Let's return to the main menu:
                 db.commit()
                 db.refresh(user)
                 
-                self._log_with_user_context('info', f"New user created: {full_name}", str(telegram_user.id))
+                logger.info(f"New user created: {full_name} (Language: {language})")
             else:
-                # Update last activity
+                # Update language and last activity
+                user.language = language
                 user.last_activity = datetime.utcnow()
                 db.commit()
             
-            return user
+            # Return user data as dict to avoid session issues
+            return {
+                'id': user.id,
+                'telegram_id': user.telegram_id,
+                'full_name': user.full_name,
+                'telegram_username': user.telegram_username,
+                'language': user.language
+            }
     
     async def error_handler(self, event, exception):
-        """Enhanced error handler with user notifications and admin alerts"""
-        user_id = 'unknown'
+        """Simple error handler"""
+        logger.error(f"Bot error: {exception}")
         
+        # Try to send user-friendly error message
         try:
-            # Extract user ID if available
-            if hasattr(event, 'from_user') and event.from_user:
-                user_id = str(event.from_user.id)
-            elif hasattr(event, 'message') and event.message and event.message.from_user:
-                user_id = str(event.message.from_user.id)
-            
-            self._log_with_user_context('error', f"Bot error: {exception}", user_id)
-            
-            # Send user-friendly error message
             if hasattr(event, 'message') and event.message:
-                try:
-                    await event.message.answer(
-                        "❌ An unexpected error occurred. Please try again or contact support.",
-                        reply_markup=get_main_menu(),
-                        parse_mode="Markdown"
-                    )
-                except Exception as send_error:
-                    logger.error(f"Failed to send error message to user: {send_error}")
-            
-            # Send admin notification for critical errors
-            if hasattr(settings, 'telegram_admin_id') and settings.telegram_admin_id:
-                try:
-                    admin_message = f"""
-🚨 **Bot Error Alert**
-
-**User ID:** {user_id}
-**Error:** {str(exception)[:200]}
-**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-Please check the logs for more details.
-                    """
-                    
-                    await self.bot.send_message(
-                        chat_id=settings.telegram_admin_id,
-                        text=admin_message,
-                        parse_mode="Markdown"
-                    )
-                except Exception as admin_error:
-                    logger.error(f"Failed to send admin notification: {admin_error}")
-                    
-        except Exception as handler_error:
-            logger.error(f"Error in error handler: {handler_error}")
+                await event.message.answer(
+                    "❌ An unexpected error occurred. Please try again or contact support.\n❌ حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى أو التواصل مع الدعم."
+                )
+        except Exception as send_error:
+            logger.error(f"Failed to send error message: {send_error}")
     
     async def start_polling(self):
-        """Start bot polling with enhanced error handling"""
+        """Start bot polling"""
         try:
             logger.info("Starting Telegram bot polling...")
             await self.dp.start_polling(self.bot)
@@ -1363,78 +1392,23 @@ Please check the logs for more details.
             logger.error(f"Error starting bot polling: {e}")
             raise
     
-    async def start_webhook(self, webhook_url: str, webhook_path: str = "/webhook"):
-        """Start bot with webhook (recommended for production)"""
-        try:
-            logger.info(f"Starting Telegram bot with webhook: {webhook_url}")
-            
-            # Set webhook
-            await self.bot.set_webhook(
-                url=f"{webhook_url}{webhook_path}",
-                drop_pending_updates=True
-            )
-            
-            logger.info("Webhook set successfully")
-            
-        except Exception as e:
-            logger.error(f"Error setting webhook: {e}")
-            raise
-    
     async def stop(self):
-        """Stop bot with proper cleanup"""
+        """Stop bot"""
         try:
             if self.bot:
                 await self.bot.session.close()
-            
-            # Close storage if it has a close method
-            if hasattr(self.dp.storage, 'close'):
-                await self.dp.storage.close()
-                
             logger.info("Telegram bot stopped successfully")
-            
         except Exception as e:
             logger.error(f"Error stopping bot: {e}")
-
-# -------------------------------------------------
-# Rate Limiting (Optional Enhancement)
-# -------------------------------------------------
-
-class RateLimiter:
-    """Simple rate limiter to prevent spam"""
-    
-    def __init__(self, max_requests: int = 10, window_seconds: int = 60):
-        self.max_requests = max_requests
-        self.window_seconds = window_seconds
-        self.requests = {}
-    
-    def is_allowed(self, user_id: str) -> bool:
-        """Check if user is within rate limits"""
-        now = datetime.now()
-        
-        if user_id not in self.requests:
-            self.requests[user_id] = []
-        
-        # Clean old requests
-        self.requests[user_id] = [
-            req_time for req_time in self.requests[user_id]
-            if (now - req_time).seconds < self.window_seconds
-        ]
-        
-        # Check if under limit
-        if len(self.requests[user_id]) < self.max_requests:
-            self.requests[user_id].append(now)
-            return True
-        
-        return False
 
 # -------------------------------------------------
 # Main Entry Point
 # -------------------------------------------------
 
 async def main():
-    """Main function to run the bot with enhanced initialization"""
+    """Main function to run the bot"""
     
-    # Validate required configuration
+    # Validate configuration
     if not settings.telegram_bot_token:
         logger.error("TELEGRAM_BOT_TOKEN not configured")
         print("Please set TELEGRAM_BOT_TOKEN in your environment variables")
@@ -1449,34 +1423,14 @@ async def main():
         print(f"Database initialization failed: {e}")
         return
     
-    # Create and configure bot
+    # Create and start bot
     try:
         bot = StudentServicesBot()
         logger.info("Bot instance created successfully")
-    except Exception as e:
-        logger.error(f"Bot initialization failed: {e}")
-        print(f"Bot initialization failed: {e}")
-        return
-    
-    # Start bot based on configuration
-    try:
-        # Check if webhook URL is configured for production
-        webhook_url = getattr(settings, 'webhook_url', None)
         
-        if webhook_url:
-            # Production mode with webhook
-            logger.info("Starting bot in webhook mode (production)")
-            await bot.start_webhook(webhook_url)
-            
-            # Keep the process running
-            while True:
-                await asyncio.sleep(3600)  # Sleep for 1 hour
-                
-        else:
-            # Development mode with polling
-            logger.info("Starting bot in polling mode (development)")
-            await bot.start_polling()
-            
+        # Start polling
+        await bot.start_polling()
+        
     except KeyboardInterrupt:
         logger.info("Bot stopped by user (Ctrl+C)")
     except Exception as e:
@@ -1487,45 +1441,6 @@ async def main():
             await bot.stop()
         except Exception as e:
             logger.error(f"Error during bot shutdown: {e}")
-
-# -------------------------------------------------
-# Webhook Handler (for production deployment)
-# -------------------------------------------------
-
-def create_webhook_app(bot_instance: StudentServicesBot):
-    """Create FastAPI app for webhook handling"""
-    try:
-        from fastapi import FastAPI, Request
-        from fastapi.responses import JSONResponse
-        
-        app = FastAPI(title="Telegram Bot Webhook")
-        
-        @app.post("/webhook")
-        async def webhook_handler(request: Request):
-            """Handle incoming webhook updates"""
-            try:
-                update_data = await request.json()
-                update = types.Update(**update_data)
-                await bot_instance.dp.feed_update(bot_instance.bot, update)
-                return JSONResponse({"status": "ok"})
-            except Exception as e:
-                logger.error(f"Webhook error: {e}")
-                return JSONResponse({"status": "error"}, status_code=500)
-        
-        @app.get("/health")
-        async def health_check():
-            """Health check endpoint"""
-            return JSONResponse({"status": "healthy", "service": "telegram-bot"})
-        
-        return app
-        
-    except ImportError:
-        logger.warning("FastAPI not available for webhook mode")
-        return None
-
-# -------------------------------------------------
-# Entry Point
-# -------------------------------------------------
 
 if __name__ == "__main__":
     try:
