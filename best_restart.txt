@@ -1,0 +1,44 @@
+cd ~/student-services_V4_Docker
+
+# 1. Stop all Docker services
+echo "🛑 Stopping all services..."
+docker compose down
+
+# 2. Clear all Docker caches
+echo "🧹 Clearing Docker caches..."
+docker system prune -af --volumes
+docker builder prune -af
+
+# 3. Clear any local caches
+echo "🧹 Clearing local caches..."
+sudo rm -rf ./nginx_cache/* 2>/dev/null || true
+sudo rm -rf ./logs/* 2>/dev/null || true
+
+# 4. Rebuild everything from scratch
+echo "🔨 Rebuilding services..."
+docker compose build --no-cache
+
+# 5. Start services
+echo "🚀 Starting services..."
+docker compose up -d
+
+# 6. Wait for healthy status
+echo "⏳ Waiting for services to be healthy..."
+sleep 20
+
+# 7. Check status
+docker compose ps
+
+# 8. Check logs
+echo ""
+echo "📋 Recent logs:"
+docker compose logs --tail=10 web
+
+echo ""
+echo "✅ Server completely restarted!"
+echo ""
+echo "🌐 Test URLs:"
+echo "   https://elitestudentservices.online/admin"
+echo ""
+echo "⚠️  IMPORTANT: Clear your browser cache!"
+echo "   Ctrl+Shift+Delete → All time → Clear"
